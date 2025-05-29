@@ -9,20 +9,13 @@ use ServerStatsBundle\Repository\MinuteStatRepository;
 use Tourze\Arrayable\AdminArrayInterface;
 use Tourze\DoctrineIndexedBundle\Attribute\IndexColumn;
 use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
-use Tourze\EasyAdmin\Attribute\Action\Deletable;
-use Tourze\EasyAdmin\Attribute\Column\ExportColumn;
-use Tourze\EasyAdmin\Attribute\Column\ListColumn;
-use Tourze\EasyAdmin\Attribute\Filter\Filterable;
-use Tourze\EasyAdmin\Attribute\Permission\AsPermission;
 use Tourze\ScheduleEntityCleanBundle\Attribute\AsScheduleClean;
 
 #[AsScheduleClean(expression: '14 5 * * *', defaultKeepDay: 60, keepDayEnv: 'SERVER_NODE_STAT_PERSIST_DAY_NUM')]
-#[Deletable]
-#[AsPermission(title: '节点统计')]
 #[ORM\Table(name: 'ims_server_node_stat', options: ['comment' => '节点统计'])]
 #[ORM\Entity(repositoryClass: MinuteStatRepository::class)]
 #[ORM\UniqueConstraint(name: 'ims_server_node_stat_idx_unique', columns: ['node_id', 'datetime'])]
-class MinuteStat implements AdminArrayInterface
+class MinuteStat implements AdminArrayInterface, \Stringable
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -33,45 +26,34 @@ class MinuteStat implements AdminArrayInterface
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private Node $node;
 
-    #[ListColumn(sorter: true)]
     #[IndexColumn]
-    #[Filterable]
     #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['comment' => '时间'])]
     private ?\DateTimeInterface $datetime = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '系统CPU百分比'])]
     private ?int $cpuSystemPercent = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '用户CPU百分比'])]
     private ?int $cpuUserPercent = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '被偷CPU百分比'])]
     private ?int $cpuStolenPercent = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '空闲CPU百分比'])]
     private ?int $cpuIdlePercent = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, nullable: true, options: ['comment' => '过去1分钟负载'])]
     private ?string $loadOneMinute = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, nullable: true, options: ['comment' => '过去5分钟负载'])]
     private ?string $loadFiveMinutes = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, nullable: true, options: ['comment' => '过去15分钟负载'])]
     private ?string $loadFifteenMinutes = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '运行进程数'])]
     private ?int $processRunning = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '总进程数'])]
     private ?int $processTotal = null;
 
@@ -81,19 +63,15 @@ class MinuteStat implements AdminArrayInterface
     #[ORM\Column(nullable: true)]
     private ?int $processWaitingForRun = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '总内存'])]
     private ?int $memoryTotal = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '已用内存'])]
     private ?int $memoryUsed = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '空闲内存'])]
     private ?int $memoryFree = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => '可用内存'])]
     private ?int $memoryAvailable = null;
 
@@ -109,19 +87,15 @@ class MinuteStat implements AdminArrayInterface
     #[ORM\Column(nullable: true)]
     private ?int $memorySwapUsed = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '入带宽'])]
     private ?string $rxBandwidth = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '入包量'])]
     private ?string $rxPackets = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '出带宽'])]
     private ?string $txBandwidth = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '出包量'])]
     private ?string $txPackets = null;
 
@@ -140,11 +114,9 @@ class MinuteStat implements AdminArrayInterface
     #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, nullable: true)]
     private ?string $diskBusyPercent = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => 'TCP连接数'])]
     private ?int $tcpEstab = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => 'TCP监听数'])]
     private ?int $tcpListen = null;
 
@@ -172,20 +144,25 @@ class MinuteStat implements AdminArrayInterface
     #[ORM\Column(nullable: true)]
     private ?int $tcpLastAck = null;
 
-    #[ListColumn(sorter: true)]
     #[ORM\Column(nullable: true, options: ['comment' => 'UDP监听数'])]
     private ?int $udpCount = null;
 
     #[ORM\Column(type: Types::JSON, nullable: true, options: ['comment' => '在线用户'])]
     private ?array $onlineUsers = null;
 
-    #[Filterable]
     #[IndexColumn]
-    #[ListColumn(order: 98, sorter: true)]
-    #[ExportColumn]
     #[CreateTimeColumn]
     #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['comment' => '创建时间'])]
     private ?\DateTimeInterface $createTime = null;
+
+    public function __toString(): string
+    {
+        return sprintf('MinuteStat[%s] Node: %s - %s', 
+            $this->id, 
+            $this->node->getId() ?? 'Unknown', 
+            $this->datetime?->format('Y-m-d H:i:s')
+        );
+    }
 
     public function getId(): ?int
     {
