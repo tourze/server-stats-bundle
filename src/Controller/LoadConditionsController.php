@@ -163,25 +163,25 @@ class LoadConditionsController extends AbstractController
             $minuteStat->setNode($node);
             $minuteStat->setDatetime($now);
 
-            // 解析loadConditions JSON数据
-            if (is_string($loadConditions)) {
-                $loadData = Json::decode($loadConditions);
-            } else {
-                $loadData = $loadConditions;
-            }
-
-            // 设置CPU相关数据
-            if (isset($loadData['cpu'])) {
-                $minuteStat->setCpuSystemPercent($loadData['cpu']['system'] ?? null);
-                $minuteStat->setCpuUserPercent($loadData['cpu']['user'] ?? null);
-                $minuteStat->setCpuIdlePercent($loadData['cpu']['idle'] ?? null);
+            // 解析 loadConditions 字符串数据 (来自 /proc/loadavg)
+            // 格式: "0.06 0.04 0.05 1/776 17\n"
+            $loadData = null;
+            if (is_string($loadConditions) && trim($loadConditions)) {
+                $parts = explode(' ', trim($loadConditions));
+                if (count($parts) >= 3) {
+                    $loadData = [
+                        '1min' => (float)$parts[0],
+                        '5min' => (float)$parts[1],
+                        '15min' => (float)$parts[2],
+                    ];
+                }
             }
 
             // 设置负载数据
-            if (isset($loadData['load'])) {
-                $minuteStat->setLoadOneMinute($loadData['load']['1min'] ?? null);
-                $minuteStat->setLoadFiveMinutes($loadData['load']['5min'] ?? null);
-                $minuteStat->setLoadFifteenMinutes($loadData['load']['15min'] ?? null);
+            if ($loadData) {
+                $minuteStat->setLoadOneMinute($loadData['1min']);
+                $minuteStat->setLoadFiveMinutes($loadData['5min']);
+                $minuteStat->setLoadFifteenMinutes($loadData['15min']);
             }
 
             // 设置内存数据
