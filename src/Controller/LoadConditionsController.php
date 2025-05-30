@@ -12,7 +12,6 @@ use ServerStatsBundle\Entity\DailyTraffic;
 use ServerStatsBundle\Entity\MinuteStat;
 use ServerStatsBundle\Entity\MonthlyTraffic;
 use ServerStatsBundle\Repository\DailyTrafficRepository;
-use ServerStatsBundle\Repository\MinuteStatRepository;
 use ServerStatsBundle\Repository\MonthlyTrafficRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Cache\Adapter\AdapterInterface;
@@ -32,7 +31,6 @@ class LoadConditionsController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly DailyTrafficRepository $dailyTrafficRepository,
         private readonly MonthlyTrafficRepository $monthlyTrafficRepository,
-        private readonly MinuteStatRepository $minuteStatRepository,
         private readonly LoggerInterface $logger,
     )
     {
@@ -41,6 +39,12 @@ class LoadConditionsController extends AbstractController
     #[Route(path: '/api/load_conditions/', methods: 'POST')]
     public function loadConditions(Request $request): Response
     {
+        $this->logger->info('收到HTTP请求', [
+            'uri' => $request->getUri(),
+            'headers' => $request->headers->all(),
+            'body' => $request->getContent(),
+        ]);
+
         $now = Carbon::now();
         $today = $now->startOfDay();
 
