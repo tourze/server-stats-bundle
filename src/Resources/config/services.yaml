@@ -10,3 +10,5 @@ services:
     resource: '../../DataFixtures/'
   ServerStatsBundle\Repository\:
     resource: '../../Repository/'
+  ServerStatsBundle\Service\:
+    resource: '../../Service/'

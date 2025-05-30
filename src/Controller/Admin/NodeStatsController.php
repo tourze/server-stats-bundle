@@ -2,7 +2,6 @@
 
 namespace ServerStatsBundle\Controller\Admin;
 
-use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use ServerNodeBundle\Entity\Node;
 use ServerStatsBundle\Service\NodeMonitorService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -15,7 +14,6 @@ class NodeStatsController extends AbstractController
 {
     public function __construct(
         private readonly NodeMonitorService $nodeMonitorService,
-        private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
     }
 
