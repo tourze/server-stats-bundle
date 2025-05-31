@@ -208,7 +208,7 @@ class LoadConditionsController extends AbstractController
             $this->entityManager->flush();
         }
 
-        return new Response('success');
+        return $this->json(['msg' => 'success']);
     }
 
     /**
