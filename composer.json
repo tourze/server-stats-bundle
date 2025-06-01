@@ -14,6 +14,8 @@
     "doctrine/persistence": "^3.1 || ^4",
     "easycorp/easyadmin-bundle": "^4",
     "nesbot/carbon": "^2.72 || ^3",
+    "psr/log": "^3|^2|^1",
+    "symfony/cache": "^6.4",
     "symfony/config": "^6.4",
     "symfony/dependency-injection": "^6.4",
     "symfony/doctrine-bridge": "^6.4",
@@ -26,9 +28,11 @@
     "tourze/bundle-dependency": "0.0.*",
     "tourze/doctrine-indexed-bundle": "0.0.*",
     "tourze/doctrine-timestamp-bundle": "0.0.*",
-    "tourze/easy-admin-attribute": "0.1.*",
     "tourze/server-node-bundle": "0.0.*",
-    "tourze/symfony-schedule-entity-clean-bundle": "0.1.*"
+    "tourze/symfony-routing-auto-loader-bundle": "0.0.*",
+    "tourze/symfony-schedule-entity-clean-bundle": "0.1.*",
+    "yiisoft/arrays": "^3",
+    "yiisoft/json": "^1.0"
   },
   "require-dev": {
     "phpstan/phpstan": "^2.1",
