@@ -8,7 +8,7 @@ use ServerNodeBundle\Entity\Node;
 use ServerStatsBundle\Repository\MinuteStatRepository;
 use Tourze\Arrayable\AdminArrayInterface;
 use Tourze\DoctrineIndexedBundle\Attribute\IndexColumn;
-use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
+use Tourze\DoctrineTimestampBundle\Traits\CreateTimeAware;
 use Tourze\ScheduleEntityCleanBundle\Attribute\AsScheduleClean;
 
 #[AsScheduleClean(expression: '14 5 * * *', defaultKeepDay: 60, keepDayEnv: 'SERVER_NODE_STAT_PERSIST_DAY_NUM')]
@@ -17,6 +17,8 @@ use Tourze\ScheduleEntityCleanBundle\Attribute\AsScheduleClean;
 #[ORM\UniqueConstraint(name: 'ims_server_node_stat_idx_unique', columns: ['node_id', 'datetime'])]
 class MinuteStat implements AdminArrayInterface, \Stringable
 {
+    use CreateTimeAware;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -149,11 +151,6 @@ class MinuteStat implements AdminArrayInterface, \Stringable
 
     #[ORM\Column(type: Types::JSON, nullable: true, options: ['comment' => '在线用户'])]
     private ?array $onlineUsers = null;
-
-    #[IndexColumn]
-    #[CreateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['comment' => '创建时间'])]
-    private ?\DateTimeInterface $createTime = null;
 
     public function __toString(): string
     {
@@ -671,16 +668,6 @@ class MinuteStat implements AdminArrayInterface, \Stringable
         $this->onlineUsers = $onlineUsers;
 
         return $this;
-    }
-
-    public function getCreateTime(): ?\DateTimeInterface
-    {
-        return $this->createTime;
-    }
-
-    public function setCreateTime(?\DateTimeInterface $createdAt): void
-    {
-        $this->createTime = $createdAt;
     }
 
     public function retrieveAdminArray(): array

@@ -50,7 +50,6 @@ class NodeMonitorServiceTest extends TestCase
         $result = $this->nodeMonitorService->getNetworkMonitorData($node);
         
         // 只测试返回结构，不测试具体值
-        $this->assertIsArray($result);
         $this->assertArrayHasKey('labels24h', $result);
         $this->assertArrayHasKey('rxData24h', $result);
         $this->assertArrayHasKey('txData24h', $result);
@@ -85,7 +84,6 @@ class NodeMonitorServiceTest extends TestCase
         $result = $this->nodeMonitorService->getLoadMonitorData($node);
         
         // 只测试返回结构，不测试具体值
-        $this->assertIsArray($result);
         $this->assertArrayHasKey('labels', $result);
         $this->assertArrayHasKey('cpuUserData', $result);
         $this->assertArrayHasKey('cpuSystemData', $result);

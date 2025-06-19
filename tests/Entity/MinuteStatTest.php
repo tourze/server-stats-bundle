@@ -348,8 +348,6 @@ class MinuteStatTest extends TestCase
         $this->minuteStat->setLoadOneMinute('1.25');
         
         $adminArray = $this->minuteStat->retrieveAdminArray();
-        
-        $this->assertIsArray($adminArray);
         // 由于我们不确定实际的数组键，先检查是否为数组
         // 暂时移除对特定键的检查
         $this->assertNotEmpty($adminArray);
