@@ -30,7 +30,7 @@ class DailyTrafficRepository extends ServiceEntityRepository
             'node' => $node,
             'date' => $date,
         ]);
-        if (!$log) {
+        if ($log === null) {
             $log = new DailyTraffic();
             $log->setRx('0');
             $log->setTx('0');
@@ -39,10 +39,10 @@ class DailyTrafficRepository extends ServiceEntityRepository
         }
         $log->setIp($ip);
         if ($log->getRx() < $rx) {
-            $log->setRx($rx);
+            $log->setRx((string)$rx);
         }
         if ($log->getTx() < $tx) {
-            $log->setTx($tx);
+            $log->setTx((string)$tx);
         }
 
         try {

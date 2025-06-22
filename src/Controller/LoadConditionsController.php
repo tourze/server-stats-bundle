@@ -2,7 +2,7 @@
 
 namespace ServerStatsBundle\Controller;
 
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use ServerNodeBundle\Entity\Node;
@@ -37,7 +37,7 @@ class LoadConditionsController extends AbstractController
     }
 
     #[Route(path: '/api/load_conditions/', methods: 'POST')]
-    public function loadConditions(Request $request): Response
+    public function __invoke(Request $request): Response
     {
         $this->logger->info('收到HTTP请求', [
             'uri' => $request->getUri(),
@@ -45,11 +45,11 @@ class LoadConditionsController extends AbstractController
             'body' => $request->getContent(),
         ]);
 
-        $now = Carbon::now();
+        $now = CarbonImmutable::now();
         $today = $now->startOfDay();
 
         $node = $this->getNodeFromRequest($request);
-        if (!$node) {
+        if ($node === null) {
             throw new BadRequestException('Invalid node identification');
         }
 
@@ -99,7 +99,7 @@ class LoadConditionsController extends AbstractController
             'node' => $node,
             'date' => $today,
         ]);
-        if (!$nodeTrafficDay) {
+        if ($nodeTrafficDay === null) {
             $nodeTrafficDay = new DailyTraffic();
             $nodeTrafficDay->setNode($node);
             $nodeTrafficDay->setDate($today);
@@ -121,7 +121,7 @@ class LoadConditionsController extends AbstractController
             'node' => $node,
             'month' => $now->format('Y-m'),
         ]);
-        if (!$nodeTrafficMonth) {
+        if ($nodeTrafficMonth === null) {
             $nodeTrafficMonth = new MonthlyTraffic();
             $nodeTrafficMonth->setNode($node);
             $nodeTrafficMonth->setMonth($now->format('Y-m'));
@@ -166,7 +166,7 @@ class LoadConditionsController extends AbstractController
             // 解析 loadConditions 字符串数据 (来自 /proc/loadavg)
             // 格式: "0.06 0.04 0.05 1/776 17\n"
             $loadData = null;
-            if (is_string($loadConditions) && trim($loadConditions)) {
+            if (is_string($loadConditions) && trim($loadConditions) !== '') {
                 $parts = explode(' ', trim($loadConditions));
                 if (count($parts) >= 3) {
                     $loadData = [
@@ -178,10 +178,10 @@ class LoadConditionsController extends AbstractController
             }
 
             // 设置负载数据
-            if ($loadData) {
-                $minuteStat->setLoadOneMinute($loadData['1min']);
-                $minuteStat->setLoadFiveMinutes($loadData['5min']);
-                $minuteStat->setLoadFifteenMinutes($loadData['15min']);
+            if ($loadData !== null) {
+                $minuteStat->setLoadOneMinute((string)$loadData['1min']);
+                $minuteStat->setLoadFiveMinutes((string)$loadData['5min']);
+                $minuteStat->setLoadFifteenMinutes((string)$loadData['15min']);
             }
 
             // 设置内存数据
@@ -190,8 +190,8 @@ class LoadConditionsController extends AbstractController
             $minuteStat->setMemoryFree($totalRam - $ramUsed);
 
             // 设置网络数据
-            $minuteStat->setRxBandwidth($bytesRecv2min);
-            $minuteStat->setTxBandwidth($bytesSent2min);
+            $minuteStat->setRxBandwidth((string)$bytesRecv2min);
+            $minuteStat->setTxBandwidth((string)$bytesSent2min);
 
             $this->entityManager->persist($minuteStat);
             $this->entityManager->flush();
@@ -224,7 +224,7 @@ class LoadConditionsController extends AbstractController
 
         // 方式2: 通过Authorization头
         $authorization = $request->headers->get('authorization');
-        if (!$authorization) {
+        if ($authorization === null) {
             return null;
         }
 
@@ -242,13 +242,13 @@ class LoadConditionsController extends AbstractController
 
         // 根据API_KEY查找对应的节点
         $node = $this->nodeRepository->findOneBy(['apiKey' => $apiKey]);
-        if (!$node) {
+        if ($node === null) {
             return null;
         }
 
         // 校验签名是否正确
         $apiSecret = $node->getApiSecret();
-        if (!$apiSecret) {
+        if ($apiSecret === null) {
             return null;
         }
 

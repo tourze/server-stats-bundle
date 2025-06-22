@@ -102,12 +102,4 @@ class DailyTrafficRepositoryTest extends TestCase
         $this->assertSame((string)$highRx, $log->getRx());
         $this->assertSame((string)$highTx, $log->getTx());
     }
-    
-    public function testStringComparison(): void
-    {
-        // 测试字符串数字比较逻辑
-        $this->assertTrue('1000' < 2000);
-        $this->assertFalse('2000' < 1000);
-        $this->assertTrue('0' < 1);
-    }
 } 

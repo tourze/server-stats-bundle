@@ -75,7 +75,7 @@ class MinuteStatFixtures extends Fixture implements DependentFixtureInterface
 
     /**
      * 创建一条分钟统计数据
-     * 
+     *
      * @param Node $node 节点对象
      * @param \DateTime $datetime 时间点
      * @param int $memoryTotal 总内存(KB)

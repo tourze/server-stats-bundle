@@ -2,7 +2,7 @@
 
 namespace ServerStatsBundle\Tests\Repository;
 
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use PHPUnit\Framework\TestCase;
 use ServerNodeBundle\Entity\Node;
 use ServerStatsBundle\Entity\MinuteStat;
@@ -19,8 +19,8 @@ class MinuteStatRepositoryTest extends TestCase
     public function testFindByNodeAndTimeReturnsExistingStat(): void
     {
         $node = new Node();
-        $date = Carbon::create(2023, 1, 1, 10, 15, 30);
-        $expectedDate = Carbon::create(2023, 1, 1, 10, 15, 0); // 取整到分钟
+        $date = CarbonImmutable::create(2023, 1, 1, 10, 15, 30);
+        $expectedDate = CarbonImmutable::create(2023, 1, 1, 10, 15, 0); // 取整到分钟
         
         // 创建预期的返回统计记录
         $expectedStat = new MinuteStat();
@@ -41,7 +41,7 @@ class MinuteStatRepositoryTest extends TestCase
                 return $this->existingStat;
             }
             
-            public function findByNodeAndTime(Node $node, Carbon $datetime): MinuteStat
+            public function findByNodeAndTime(Node $node, CarbonImmutable $datetime): MinuteStat
             {
                 $stat = $this->findOneBy([
                     'node' => $node,
@@ -70,8 +70,8 @@ class MinuteStatRepositoryTest extends TestCase
     public function testFindByNodeAndTimeCreatesNewStatWhenNotFound(): void
     {
         $node = new Node();
-        $date = Carbon::create(2023, 1, 1, 10, 15, 30);
-        $expectedDate = Carbon::create(2023, 1, 1, 10, 15, 0); // 取整到分钟
+        $date = CarbonImmutable::create(2023, 1, 1, 10, 15, 30);
+        $expectedDate = CarbonImmutable::create(2023, 1, 1, 10, 15, 0); // 取整到分钟
         
         // 创建一个局部的测试双打，只测试 findByNodeAndTime 的逻辑
         $testRepo = new class {
@@ -80,7 +80,7 @@ class MinuteStatRepositoryTest extends TestCase
                 return null; // 模拟未找到记录
             }
             
-            public function findByNodeAndTime(Node $node, Carbon $datetime): MinuteStat
+            public function findByNodeAndTime(Node $node, CarbonImmutable $datetime): MinuteStat
             {
                 $stat = $this->findOneBy([
                     'node' => $node,

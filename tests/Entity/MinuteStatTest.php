@@ -326,7 +326,7 @@ class MinuteStatTest extends TestCase
     
     public function testCreateTimeGetterAndSetter(): void
     {
-        $datetime = new \DateTime();
+        $datetime = new \DateTimeImmutable();
         
         $this->minuteStat->setCreateTime($datetime);
         $this->assertSame($datetime, $this->minuteStat->getCreateTime());

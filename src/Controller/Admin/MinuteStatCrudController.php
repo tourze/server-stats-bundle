@@ -176,7 +176,7 @@ class MinuteStatCrudController extends AbstractCrudController
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         
         $bytes = max((int)$bytes, 0);
-        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = floor(($bytes > 0 ? log($bytes) : 0) / log(1024));
         $pow = min($pow, count($units) - 1);
         
         $bytes /= (1 << (10 * $pow));
@@ -192,7 +192,7 @@ class MinuteStatCrudController extends AbstractCrudController
         $units = ['bps', 'Kbps', 'Mbps', 'Gbps', 'Tbps'];
         
         $bps = max((int)$bps, 0);
-        $pow = floor(($bps ? log($bps) : 0) / log(1000));
+        $pow = floor(($bps > 0 ? log($bps) : 0) / log(1000));
         $pow = min($pow, count($units) - 1);
         
         $bps /= (1000 ** $pow);

@@ -12,18 +12,14 @@ class LoadConditionsControllerTest extends TestCase
         $this->assertTrue(class_exists(LoadConditionsController::class));
     }
     
-    public function testControllerHasCorrectMethods(): void
-    {
-        $this->assertTrue(method_exists(LoadConditionsController::class, 'loadConditions'));
-    }
     
     public function testLoadConditionsMethodExists(): void
     {
-        // 测试 loadConditions 方法存在
+        // 测试 __invoke 方法存在
         $reflection = new \ReflectionClass(LoadConditionsController::class);
-        $this->assertTrue($reflection->hasMethod('loadConditions'));
+        $this->assertTrue($reflection->hasMethod('__invoke'));
         
-        $method = $reflection->getMethod('loadConditions');
+        $method = $reflection->getMethod('__invoke');
         $this->assertTrue($method->isPublic());
     }
     
@@ -53,10 +49,10 @@ class LoadConditionsControllerTest extends TestCase
         // 测试方法返回类型
         $reflection = new \ReflectionClass(LoadConditionsController::class);
         
-        if ($reflection->hasMethod('loadConditions')) {
-            $loadConditionsMethod = $reflection->getMethod('loadConditions');
+        if ($reflection->hasMethod('__invoke')) {
+            $loadConditionsMethod = $reflection->getMethod('__invoke');
             $returnType = $loadConditionsMethod->getReturnType();
-            if ($returnType) {
+            if ($returnType instanceof \ReflectionNamedType) {
                 $this->assertStringContainsString('Response', $returnType->getName());
             }
         }
@@ -85,7 +81,13 @@ class LoadConditionsControllerTest extends TestCase
         $this->assertGreaterThan(0, $constructor->getNumberOfParameters());
         
         $parameters = $constructor->getParameters();
-        $parameterTypes = array_map(fn($param) => $param->getType()?->getName(), $parameters);
+        $parameterTypes = array_map(function($param) {
+            $type = $param->getType();
+            if ($type instanceof \ReflectionNamedType) {
+                return $type->getName();
+            }
+            return null;
+        }, $parameters);
         
         // 检查是否包含必要的依赖
         $this->assertContains('Symfony\Component\Cache\Adapter\AdapterInterface', $parameterTypes);

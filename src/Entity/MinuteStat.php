@@ -21,7 +21,7 @@ class MinuteStat implements AdminArrayInterface, \Stringable
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\Column(options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne]
@@ -29,7 +29,7 @@ class MinuteStat implements AdminArrayInterface, \Stringable
     private Node $node;
 
     #[IndexColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, options: ['comment' => '时间'])]
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, options: ['comment' => '时间'])]
     private ?\DateTimeInterface $datetime = null;
 
     #[ORM\Column(nullable: true, options: ['comment' => '系统CPU百分比'])]
@@ -59,10 +59,10 @@ class MinuteStat implements AdminArrayInterface, \Stringable
     #[ORM\Column(nullable: true, options: ['comment' => '总进程数'])]
     private ?int $processTotal = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => '不可中断睡眠进程数'])]
     private ?int $processUninterruptibleSleep = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => '等待运行进程数'])]
     private ?int $processWaitingForRun = null;
 
     #[ORM\Column(nullable: true, options: ['comment' => '总内存'])]
@@ -77,16 +77,16 @@ class MinuteStat implements AdminArrayInterface, \Stringable
     #[ORM\Column(nullable: true, options: ['comment' => '可用内存'])]
     private ?int $memoryAvailable = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => '缓冲区内存'])]
     private ?int $memoryBuffer = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => '缓存内存'])]
     private ?int $memoryCache = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => '共享内存'])]
     private ?int $memoryShared = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => '交换区已用'])]
     private ?int $memorySwapUsed = null;
 
     #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '入带宽'])]
@@ -101,19 +101,19 @@ class MinuteStat implements AdminArrayInterface, \Stringable
     #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '出包量'])]
     private ?string $txPackets = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 20, scale: 2, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 20, scale: 2, nullable: true, options: ['comment' => '磁盘读IOPS'])]
     private ?string $diskReadIops = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 20, scale: 2, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 20, scale: 2, nullable: true, options: ['comment' => '磁盘写IOPS'])]
     private ?string $diskWriteIops = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true, options: ['comment' => '磁盘IO等待时间'])]
     private ?string $diskIoWait = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, nullable: true, options: ['comment' => '磁盘平均IO时间'])]
     private ?string $diskAvgIoTime = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, nullable: true)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 2, nullable: true, options: ['comment' => '磁盘繁忙度'])]
     private ?string $diskBusyPercent = null;
 
     #[ORM\Column(nullable: true, options: ['comment' => 'TCP连接数'])]
@@ -122,28 +122,28 @@ class MinuteStat implements AdminArrayInterface, \Stringable
     #[ORM\Column(nullable: true, options: ['comment' => 'TCP监听数'])]
     private ?int $tcpListen = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => 'TCP SYN已发送'])]
     private ?int $tcpSynSent = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => 'TCP SYN已接收'])]
     private ?int $tcpSynRecv = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => 'TCP FIN_WAIT1状态'])]
     private ?int $tcpFinWait1 = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => 'TCP FIN_WAIT2状态'])]
     private ?int $tcpFinWait2 = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => 'TCP TIME_WAIT状态'])]
     private ?int $tcpTimeWait = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => 'TCP CLOSE_WAIT状态'])]
     private ?int $tcpCloseWait = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => 'TCP CLOSING状态'])]
     private ?int $tcpClosing = null;
 
-    #[ORM\Column(nullable: true)]
+    #[ORM\Column(nullable: true, options: ['comment' => 'TCP LAST_ACK状态'])]
     private ?int $tcpLastAck = null;
 
     #[ORM\Column(nullable: true, options: ['comment' => 'UDP监听数'])]

@@ -17,7 +17,7 @@ class DailyTraffic implements \Stringable
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column]
+    #[ORM\Column(options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
     #[UniqueColumn]
@@ -29,7 +29,7 @@ class DailyTraffic implements \Stringable
     private string $ip;
 
     #[UniqueColumn]
-    #[ORM\Column(name: 'summary_date', type: Types::DATE_MUTABLE)]
+    #[ORM\Column(name: 'summary_date', type: Types::DATE_IMMUTABLE, options: ['comment' => '统计日期'])]
     private \DateTimeInterface $date;
 
     #[ORM\Column(type: Types::BIGINT, options: ['comment' => 'TX'])]
@@ -43,7 +43,7 @@ class DailyTraffic implements \Stringable
         return sprintf('DailyTraffic[%s] %s - %s', 
             $this->id, 
             $this->ip, 
-            $this->date?->format('Y-m-d')
+            $this->date->format('Y-m-d')
         );
     }
 

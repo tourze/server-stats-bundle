@@ -30,7 +30,7 @@ class MonthlyTrafficRepository extends ServiceEntityRepository
             'node' => $node,
             'month' => $date->format('Y-m'),
         ]);
-        if (!$log) {
+        if ($log === null) {
             $log = new MonthlyTraffic();
             $log->setRx('0');
             $log->setTx('0');
@@ -39,10 +39,10 @@ class MonthlyTrafficRepository extends ServiceEntityRepository
         }
         $log->setIp($ip);
         if ($log->getRx() < $rx) {
-            $log->setRx($rx);
+            $log->setRx((string)$rx);
         }
         if ($log->getTx() < $rx) {
-            $log->setTx($rx);
+            $log->setTx((string)$rx);
         }
 
         try {

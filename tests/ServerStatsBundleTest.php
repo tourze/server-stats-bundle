@@ -20,7 +20,6 @@ class ServerStatsBundleTest extends TestCase
     {
         $dependencies = ServerStatsBundle::getBundleDependencies();
         
-        $this->assertIsArray($dependencies);
         $this->assertArrayHasKey(ServerNodeBundle::class, $dependencies);
         $this->assertEquals(['all' => true], $dependencies[ServerNodeBundle::class]);
     }

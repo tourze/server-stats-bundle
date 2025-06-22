@@ -27,7 +27,7 @@ class MinuteStatRepository extends ServiceEntityRepository
             'node' => $node,
             'datetime' => $datetime->clone()->startOfMinute(),
         ]);
-        if (!$stat) {
+        if ($stat === null) {
             $stat = new MinuteStat();
             $stat->setNode($node);
             $stat->setDatetime($datetime->clone()->startOfMinute());
