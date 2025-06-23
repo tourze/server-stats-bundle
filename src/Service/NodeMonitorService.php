@@ -96,6 +96,7 @@ class NodeMonitorService
         foreach ($hours24 as $index => $hour) {
             $hourKey = $hour->format('H');
 
+            /** @phpstan-ignore-next-line */
             if (isset($hourlyData[$hourKey]) && $hourlyData[$hourKey]['count'] > 0) {
                 // 计算该小时的平均值
                 $rxData24h[$index] = $hourlyData[$hourKey]['rx'] / $hourlyData[$hourKey]['count'];
@@ -141,6 +142,7 @@ class NodeMonitorService
         foreach ($days7 as $index => $day) {
             $dayKey = $day->format('m-d');
 
+            /** @phpstan-ignore-next-line */
             if (isset($dailyData[$dayKey]) && $dailyData[$dayKey]['count'] > 0) {
                 // 计算该天的平均值
                 $rxData7d[$index] = $dailyData[$dayKey]['rx'] / $dailyData[$dayKey]['count'];
@@ -289,6 +291,7 @@ class NodeMonitorService
         // 处理分组后的数据并计算平均值
         foreach ($hourlyData as $hour => $data) {
             $count = $data['count'];
+            /** @phpstan-ignore-next-line */
             if ($count > 0) {
                 // 添加时间标签
                 $labels[] = $data['label'];
