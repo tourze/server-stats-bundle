@@ -16,7 +16,7 @@ class NodeNetworkMonitorController extends AbstractController
     ) {
     }
 
-    #[Route('/admin/node-stats/{id}/network-monitor', name: 'server_stats_node_network_monitor')]
+    #[Route(path: '/admin/node-stats/{id}/network-monitor', name: 'server_stats_node_network_monitor')]
     public function __invoke(Node $node, Request $request): Response
     {
         // 获取网络监控数据

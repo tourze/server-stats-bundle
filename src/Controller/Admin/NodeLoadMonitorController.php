@@ -16,7 +16,7 @@ class NodeLoadMonitorController extends AbstractController
     ) {
     }
 
-    #[Route('/admin/node-stats/{id}/load-monitor', name: 'server_stats_node_load_monitor')]
+    #[Route(path: '/admin/node-stats/{id}/load-monitor', name: 'server_stats_node_load_monitor')]
     public function __invoke(Node $node, Request $request): Response
     {
         // 获取负载监控数据
