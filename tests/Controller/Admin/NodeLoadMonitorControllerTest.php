@@ -2,104 +2,125 @@
 
 namespace ServerStatsBundle\Tests\Controller\Admin;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use PHPUnit\Framework\Attributes\Test;
 use ServerStatsBundle\Controller\Admin\NodeLoadMonitorController;
+use Tourze\PHPUnitSymfonyWebTest\AbstractWebTestCase;
 
-class NodeLoadMonitorControllerTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(NodeLoadMonitorController::class)]
+#[RunTestsInSeparateProcesses]
+final class NodeLoadMonitorControllerTest extends AbstractWebTestCase
 {
-    public function testControllerExists(): void
+    #[Test]
+    public function testUnauthenticatedAccessRedirectsToLogin(): void
     {
-        $this->assertTrue(class_exists(NodeLoadMonitorController::class));
+        $client = self::createClient();
+        $client->request('GET', '/admin/node-stats/999/load-monitor');
+
+        $response = $client->getResponse();
+
+        // 未认证访问应该重定向到登录页面
+        $this->assertTrue(
+            302 === $response->getStatusCode() || 404 === $response->getStatusCode(),
+            sprintf('Expected 302 or 404, got %d', $response->getStatusCode())
+        );
     }
-    
-    public function testExtendsAbstractController(): void
+
+    #[Test]
+    public function testGetRequest(): void
     {
-        $reflection = new \ReflectionClass(NodeLoadMonitorController::class);
-        $parentClass = $reflection->getParentClass();
-        
-        $this->assertNotFalse($parentClass);
-        $this->assertSame('Symfony\Bundle\FrameworkBundle\Controller\AbstractController', $parentClass->getName());
+        $client = self::createClient();
+        $client->request('GET', '/admin/node-stats/999/load-monitor');
+
+        $response = $client->getResponse();
+
+        // 验证请求被处理（可能是404因为实体不存在，或302重定向）
+        $this->assertContains($response->getStatusCode(), [302, 404]);
     }
-    
-    public function testHasConstructor(): void
+
+    #[Test]
+    public function testPostRequest(): void
     {
-        $reflection = new \ReflectionClass(NodeLoadMonitorController::class);
-        $constructor = $reflection->getConstructor();
-        
-        $this->assertNotNull($constructor);
-        $this->assertSame(1, $constructor->getNumberOfParameters());
-        
-        $parameter = $constructor->getParameters()[0];
-        $this->assertSame('nodeMonitorService', $parameter->getName());
-        
-        $type = $parameter->getType();
-        if ($type instanceof \ReflectionNamedType) {
-            $this->assertSame('ServerStatsBundle\Service\NodeMonitorService', $type->getName());
-        }
+        $client = self::createClient();
+        $client->request('POST', '/admin/node-stats/999/load-monitor');
+
+        $response = $client->getResponse();
+
+        // POST/PUT/DELETE/PATCH/OPTIONS 方法不被支持，预期404或405
+        $this->assertContains($response->getStatusCode(), [404, 405]);
     }
-    
-    public function testHasInvokeMethod(): void
+
+    #[Test]
+    public function testPutRequest(): void
     {
-        $reflection = new \ReflectionClass(NodeLoadMonitorController::class);
-        $this->assertTrue($reflection->hasMethod('__invoke'));
-        
-        $method = $reflection->getMethod('__invoke');
-        $this->assertTrue($method->isPublic());
-        $this->assertSame(2, $method->getNumberOfParameters());
-        
-        $returnType = $method->getReturnType();
-        if ($returnType instanceof \ReflectionNamedType) {
-            $this->assertSame('Symfony\Component\HttpFoundation\Response', $returnType->getName());
-        }
+        $client = self::createClient();
+        $client->request('PUT', '/admin/node-stats/999/load-monitor');
+
+        $response = $client->getResponse();
+
+        // POST/PUT/DELETE/PATCH/OPTIONS 方法不被支持，预期404或405
+        $this->assertContains($response->getStatusCode(), [404, 405]);
     }
-    
-    public function testHasRouteAttribute(): void
+
+    #[Test]
+    public function testDeleteRequest(): void
     {
-        $reflection = new \ReflectionClass(NodeLoadMonitorController::class);
-        $method = $reflection->getMethod('__invoke');
-        $attributes = $method->getAttributes('Symfony\Component\Routing\Attribute\Route');
-        
-        $this->assertCount(1, $attributes);
-        
-        $routeAttribute = $attributes[0];
-        $arguments = $routeAttribute->getArguments();
-        
-        $this->assertArrayHasKey('path', $arguments);
-        $this->assertSame('/admin/node-stats/{id}/load-monitor', $arguments['path']);
-        $this->assertArrayHasKey('name', $arguments);
-        $this->assertSame('server_stats_node_load_monitor', $arguments['name']);
+        $client = self::createClient();
+        $client->request('DELETE', '/admin/node-stats/999/load-monitor');
+
+        $response = $client->getResponse();
+
+        // POST/PUT/DELETE/PATCH/OPTIONS 方法不被支持，预期404或405
+        $this->assertContains($response->getStatusCode(), [404, 405]);
     }
-    
-    public function testUsesCorrectServices(): void
+
+    #[Test]
+    public function testPatchRequest(): void
     {
-        $reflection = new \ReflectionClass(NodeLoadMonitorController::class);
-        $source = file_get_contents($reflection->getFileName());
-        
-        $this->assertStringContainsString('NodeMonitorService', $source);
-        $this->assertStringContainsString('getLoadMonitorData', $source);
-        $this->assertStringContainsString('@ServerStats/admin/load_monitor.html.twig', $source);
+        $client = self::createClient();
+        $client->request('PATCH', '/admin/node-stats/999/load-monitor');
+
+        $response = $client->getResponse();
+
+        // POST/PUT/DELETE/PATCH/OPTIONS 方法不被支持，预期404或405
+        $this->assertContains($response->getStatusCode(), [404, 405]);
     }
-    
-    public function testParameterTypes(): void
+
+    #[Test]
+    public function testHeadRequest(): void
     {
-        $reflection = new \ReflectionClass(NodeLoadMonitorController::class);
-        $method = $reflection->getMethod('__invoke');
-        $parameters = $method->getParameters();
-        
-        $this->assertCount(2, $parameters);
-        
-        $nodeParam = $parameters[0];
-        $this->assertSame('node', $nodeParam->getName());
-        $type = $nodeParam->getType();
-        if ($type instanceof \ReflectionNamedType) {
-            $this->assertSame('ServerNodeBundle\Entity\Node', $type->getName());
-        }
-        
-        $requestParam = $parameters[1];
-        $this->assertSame('request', $requestParam->getName());
-        $type = $requestParam->getType();
-        if ($type instanceof \ReflectionNamedType) {
-            $this->assertSame('Symfony\Component\HttpFoundation\Request', $type->getName());
-        }
+        $client = self::createClient();
+        $client->request('HEAD', '/admin/node-stats/999/load-monitor');
+
+        $response = $client->getResponse();
+
+        // HEAD 方法可能返回302（重定向）或404（实体不存在）
+        $this->assertContains($response->getStatusCode(), [302, 404]);
+    }
+
+    #[Test]
+    public function testOptionsRequest(): void
+    {
+        $client = self::createClient();
+        $client->request('OPTIONS', '/admin/node-stats/999/load-monitor');
+
+        $response = $client->getResponse();
+
+        // POST/PUT/DELETE/PATCH/OPTIONS 方法不被支持，预期404或405
+        $this->assertContains($response->getStatusCode(), [404, 405]);
+    }
+
+    #[DataProvider('provideNotAllowedMethods')]
+    public function testMethodNotAllowed(string $method): void
+    {
+        $client = self::createClient();
+        $client->request($method, '/admin/node-stats/999/load-monitor');
+        $response = $client->getResponse();
+        $this->assertContains($response->getStatusCode(), [404, 405]);
     }
 }

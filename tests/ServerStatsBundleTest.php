@@ -1,26 +1,19 @@
 <?php
 
+declare(strict_types=1);
+
 namespace ServerStatsBundle\Tests;
 
-use PHPUnit\Framework\TestCase;
-use ServerNodeBundle\ServerNodeBundle;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use ServerStatsBundle\ServerStatsBundle;
-use Tourze\BundleDependency\BundleDependencyInterface;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractBundleTestCase;
 
-class ServerStatsBundleTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(ServerStatsBundle::class)]
+#[RunTestsInSeparateProcesses]
+final class ServerStatsBundleTest extends AbstractBundleTestCase
 {
-    public function testInstanceOf(): void
-    {
-        $bundle = new ServerStatsBundle();
-        
-        $this->assertInstanceOf(BundleDependencyInterface::class, $bundle);
-    }
-    
-    public function testGetBundleDependencies(): void
-    {
-        $dependencies = ServerStatsBundle::getBundleDependencies();
-        
-        $this->assertArrayHasKey(ServerNodeBundle::class, $dependencies);
-        $this->assertEquals(['all' => true], $dependencies[ServerNodeBundle::class]);
-    }
-} 
+}

@@ -1,37 +1,30 @@
 <?php
 
+declare(strict_types=1);
+
 namespace ServerStatsBundle\Tests\Controller\Admin;
 
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use PHPUnit\Framework\Attributes\Test;
-use ServerStatsBundle\Controller\Admin\MinuteStatCrudController;
-use ServerStatsBundle\Entity\MinuteStat;
+use ServerStatsBundle\Controller\Admin\MonthlyTrafficCrudController;
+use ServerStatsBundle\Entity\MonthlyTraffic;
 use Tourze\PHPUnitSymfonyWebTest\AbstractEasyAdminControllerTestCase;
 
 /**
  * @internal
  */
-#[CoversClass(MinuteStatCrudController::class)]
+#[CoversClass(MonthlyTrafficCrudController::class)]
 #[RunTestsInSeparateProcesses]
-final class MinuteStatCrudControllerTest extends AbstractEasyAdminControllerTestCase
+final class MonthlyTrafficCrudControllerTest extends AbstractEasyAdminControllerTestCase
 {
     /**
-     * @return AbstractCrudController<MinuteStat>
+     * @return AbstractCrudController<MonthlyTraffic>
      */
     protected function getControllerService(): AbstractCrudController
     {
-        return self::getService(MinuteStatCrudController::class);
-    }
-
-    /**
-     * @return iterable<string, array{string}>
-     */
-    public static function provideNewPageFields(): iterable
-    {
-        // MinuteStat 控制器禁用了 NEW 操作，提供虚拟数据避免空数据集错误
-        yield 'dummy' => ['dummy'];
+        return self::getService(MonthlyTrafficCrudController::class);
     }
 
     /**
@@ -39,8 +32,21 @@ final class MinuteStatCrudControllerTest extends AbstractEasyAdminControllerTest
      */
     public static function provideEditPageFields(): iterable
     {
-        // MinuteStat 控制器禁用了 EDIT 操作，提供虚拟数据避免空数据集错误
-        yield 'dummy_field' => ['dummy'];
+        yield 'node_field' => ['node'];
+        yield 'ip_field' => ['ip'];
+        yield 'month_field' => ['month'];
+        yield 'rx_field' => ['rx'];
+        yield 'tx_field' => ['tx'];
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNewPageFields(): iterable
+    {
+        // NEW action is disabled for this controller, so return a dummy entry
+        // This prevents "Empty data set provided by data provider" error
+        yield 'dummy' => ['dummy'];
     }
 
     /**
@@ -51,21 +57,12 @@ final class MinuteStatCrudControllerTest extends AbstractEasyAdminControllerTest
         // 根据实际控制器配置，只包含在index页面显示的字段
         yield 'id' => ['ID'];
         yield 'node' => ['节点'];
-        yield 'datetime' => ['时间点'];
-        yield 'cpu_sys' => ['系统CPU%'];
-        yield 'cpu_user' => ['用户CPU%'];
-        yield 'cpu_idle' => ['空闲CPU%'];
-        yield 'load_avg' => ['1分钟负载'];
-        yield 'processes_running' => ['运行进程数'];
-        yield 'processes_total' => ['总进程数'];
-        yield 'memory_total' => ['总内存'];
-        yield 'memory_used' => ['已用内存'];
-        yield 'network_rx' => ['入带宽'];
-        yield 'network_tx' => ['出带宽'];
-        yield 'tcp_conn_used' => ['TCP连接数'];
-        yield 'tcp_conn_listen' => ['TCP监听数'];
-        yield 'udp_conn_listen' => ['UDP监听数'];
-        yield 'created_at' => ['创建时间'];
+        yield 'ip' => ['IP地址'];
+        yield 'month' => ['月份'];
+        yield 'rx' => ['下行流量'];
+        yield 'tx' => ['上行流量'];
+        yield 'createdAt' => ['创建时间'];
+        yield 'updatedAt' => ['更新时间'];
     }
 
     #[Test]
@@ -74,7 +71,7 @@ final class MinuteStatCrudControllerTest extends AbstractEasyAdminControllerTest
         $client = self::createClientWithDatabase();
         $this->loginAsAdmin($client, 'admin@example.com', 'admin123');
 
-        $client->request('GET', '/admin/server-stats/minute-stat');
+        $client->request('GET', '/admin/server-stats/monthly-traffic');
 
         $response = $client->getResponse();
 
@@ -88,7 +85,7 @@ final class MinuteStatCrudControllerTest extends AbstractEasyAdminControllerTest
         if (200 === $response->getStatusCode()) {
             $content = $response->getContent();
             $this->assertIsString($content);
-            $this->assertStringContainsString('节点统计', $content);
+            $this->assertStringContainsString('月流量统计', $content);
         }
     }
 
@@ -98,9 +95,10 @@ final class MinuteStatCrudControllerTest extends AbstractEasyAdminControllerTest
         $client = self::createClientWithDatabase();
         $this->loginAsAdmin($client, 'admin@example.com', 'admin123');
 
-        $client->request('GET', '/admin/server-stats/minute-stat', [
+        $client->request('GET', '/admin/server-stats/monthly-traffic', [
             'filters' => [
-                'datetime' => '2023-01-01',
+                'ip' => 'test-ip',
+                'month' => '2024-01',
             ],
         ]);
 

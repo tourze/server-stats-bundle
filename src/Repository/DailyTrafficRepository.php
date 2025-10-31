@@ -3,17 +3,14 @@
 namespace ServerStatsBundle\Repository;
 
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\Persistence\ManagerRegistry;
-use ServerNodeBundle\Entity\Node;
 use ServerStatsBundle\Entity\DailyTraffic;
+use Tourze\PHPUnitSymfonyKernelTest\Attribute\AsRepository;
 
 /**
- * @method DailyTraffic|null find($id, $lockMode = null, $lockVersion = null)
- * @method DailyTraffic|null findOneBy(array $criteria, array $orderBy = null)
- * @method DailyTraffic[] findAll()
- * @method DailyTraffic[] findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @extends ServiceEntityRepository<DailyTraffic>
  */
+#[AsRepository(entityClass: DailyTraffic::class)]
 class DailyTrafficRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -21,40 +18,21 @@ class DailyTrafficRepository extends ServiceEntityRepository
         parent::__construct($registry, DailyTraffic::class);
     }
 
-    /**
-     * 日流量入库
-     */
-    public function saveTraffic(Node $node, string $ip, \DateTimeInterface $date, int $rx, int $tx): DailyTraffic
+    public function save(DailyTraffic $entity, bool $flush = true): void
     {
-        $log = $this->findOneBy([
-            'node' => $node,
-            'date' => $date,
-        ]);
-        if ($log === null) {
-            $log = new DailyTraffic();
-            $log->setRx('0');
-            $log->setTx('0');
-            $log->setNode($node);
-            $log->setDate($date);
-        }
-        $log->setIp($ip);
-        if ($log->getRx() < $rx) {
-            $log->setRx((string)$rx);
-        }
-        if ($log->getTx() < $tx) {
-            $log->setTx((string)$tx);
-        }
+        $this->getEntityManager()->persist($entity);
 
-        try {
-            $this->getEntityManager()->persist($log);
+        if ($flush) {
             $this->getEntityManager()->flush();
-            return $log;
-        } catch (UniqueConstraintViolationException $exception) {
-            return $this->findOneBy([
-                'node' => $node,
-                'ip' => $ip,
-                'date' => $date,
-            ]);
+        }
+    }
+
+    public function remove(DailyTraffic $entity, bool $flush = true): void
+    {
+        $this->getEntityManager()->remove($entity);
+
+        if ($flush) {
+            $this->getEntityManager()->flush();
         }
     }
 }

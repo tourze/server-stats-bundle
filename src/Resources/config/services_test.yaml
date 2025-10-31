@@ -3,10 +3,11 @@ services:
   _defaults:
     autowire: true      # Automatically injects dependencies in your services.
     autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+    public: true
 
-  ServerStatsBundle\Controller\:
-    resource: '../../Controller/'
-  ServerStatsBundle\Repository\:
-    resource: '../../Repository/'
-  ServerStatsBundle\Service\:
-    resource: '../../Service/'
+  ServerStatsBundle\DataFixtures\:
+    resource: '../../DataFixtures/'
+
+  # 加载依赖包的 fixtures
+  ServerNodeBundle\DataFixtures\NodeFixtures:
+    tags: ['doctrine.fixture.orm']

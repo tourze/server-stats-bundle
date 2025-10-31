@@ -3,50 +3,76 @@
 namespace ServerStatsBundle\DataFixtures;
 
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 use ServerNodeBundle\DataFixtures\NodeFixtures;
 use ServerNodeBundle\Entity\Node;
 use ServerStatsBundle\Entity\MonthlyTraffic;
+use Symfony\Component\DependencyInjection\Attribute\When;
 
-class MonthlyTrafficFixtures extends Fixture implements DependentFixtureInterface
+/**
+ * 月流量数据填充
+ * 生成测试用的月度流量统计数据
+ */
+#[When(env: 'test')]
+#[When(env: 'dev')]
+class MonthlyTrafficFixtures extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public const MONTHLY_TRAFFIC_PREFIX = 'monthly-traffic-';
+
+    public static function getGroups(): array
+    {
+        return ['test', 'dev'];
+    }
+
     public function load(ObjectManager $manager): void
     {
-        $node1 = $this->getReference(NodeFixtures::REFERENCE_NODE_1, Node::class);
-        $node2 = $this->getReference(NodeFixtures::REFERENCE_NODE_2, Node::class);
+        // IP地址列表
+        $ipAddresses = [
+            '192.168.1.10',
+            '10.0.0.15',
+            '172.16.0.5',
+            '203.0.113.100',
+            '198.51.100.200',
+        ];
 
-        // 为node1创建6个月的流量数据
-        $date = new \DateTime();
-        for ($i = 5; $i >= 0; $i--) {
-            $monthDate = clone $date;
-            $monthDate->modify("-$i months");
-            $monthKey = $monthDate->format('Y-m');
+        // 获取可用的节点引用
+        $nodeRefs = [
+            NodeFixtures::REFERENCE_NODE_1,
+            NodeFixtures::REFERENCE_NODE_2,
+        ];
 
-            $traffic = new MonthlyTraffic();
-            $traffic->setNode($node1);
-            $traffic->setIp('192.168.1.100');
-            $traffic->setMonth($monthKey);
-            $traffic->setRx((string)(30000000 + $i * 3000000)); // 下行流量每月增长
-            $traffic->setTx((string)(15000000 + $i * 1500000)); // 上行流量每月增长
+        $refIndex = 0;
 
-            $manager->persist($traffic);
-        }
+        // 为每个节点生成过去6个月的数据
+        foreach ($nodeRefs as $nodeRef) {
+            $node = $this->getReference($nodeRef, Node::class);
+            assert($node instanceof Node);
 
-        // 为node2创建3个月的流量数据
-        for ($i = 2; $i >= 0; $i--) {
-            $monthDate = clone $date;
-            $monthDate->modify("-$i months");
-            $monthKey = $monthDate->format('Y-m');
+            for ($i = 0; $i < 6; ++$i) {
+                $date = new \DateTime("-{$i} months");
+                $month = $date->format('Y-m'); // YYYY-MM格式
+                $ip = $ipAddresses[$i % count($ipAddresses)];
 
-            $traffic = new MonthlyTraffic();
-            $traffic->setNode($node2);
-            $traffic->setIp('192.168.1.101');
-            $traffic->setMonth($monthKey);
-            $traffic->setRx((string)(24000000 + $i * 2400000));
-            $traffic->setTx((string)(12000000 + $i * 1200000));
+                $monthlyTraffic = new MonthlyTraffic();
+                $monthlyTraffic->setNode($node);
+                $monthlyTraffic->setIp($ip);
+                $monthlyTraffic->setMonth($month);
 
-            $manager->persist($traffic);
+                // 生成随机流量数据 (字节) - 月度数据比日度数据更大
+                $baseTx = rand(100000000, 10000000000); // 100MB-10GB
+                $baseRx = rand(500000000, 50000000000); // 500MB-50GB
+
+                $monthlyTraffic->setTx((string) $baseTx);
+                $monthlyTraffic->setRx((string) $baseRx);
+
+                $manager->persist($monthlyTraffic);
+
+                // 创建引用
+                $this->addReference(self::MONTHLY_TRAFFIC_PREFIX . $refIndex, $monthlyTraffic);
+                ++$refIndex;
+            }
         }
 
         $manager->flush();

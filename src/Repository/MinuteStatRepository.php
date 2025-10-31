@@ -7,13 +7,12 @@ use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use ServerNodeBundle\Entity\Node;
 use ServerStatsBundle\Entity\MinuteStat;
+use Tourze\PHPUnitSymfonyKernelTest\Attribute\AsRepository;
 
 /**
- * @method MinuteStat|null find($id, $lockMode = null, $lockVersion = null)
- * @method MinuteStat|null findOneBy(array $criteria, array $orderBy = null)
- * @method MinuteStat[] findAll()
- * @method MinuteStat[] findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+ * @extends ServiceEntityRepository<MinuteStat>
  */
+#[AsRepository(entityClass: MinuteStat::class)]
 class MinuteStatRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -21,18 +20,29 @@ class MinuteStatRepository extends ServiceEntityRepository
         parent::__construct($registry, MinuteStat::class);
     }
 
-    public function findByNodeAndTime(Node $node, CarbonInterface $datetime): MinuteStat
+    public function save(MinuteStat $entity, bool $flush = true): void
     {
-        $stat = $this->findOneBy([
+        $this->getEntityManager()->persist($entity);
+
+        if ($flush) {
+            $this->getEntityManager()->flush();
+        }
+    }
+
+    public function remove(MinuteStat $entity, bool $flush = true): void
+    {
+        $this->getEntityManager()->remove($entity);
+
+        if ($flush) {
+            $this->getEntityManager()->flush();
+        }
+    }
+
+    public function findByNodeAndTime(Node $node, CarbonInterface $datetime): ?MinuteStat
+    {
+        return $this->findOneBy([
             'node' => $node,
             'datetime' => $datetime->clone()->startOfMinute(),
         ]);
-        if ($stat === null) {
-            $stat = new MinuteStat();
-            $stat->setNode($node);
-            $stat->setDatetime($datetime->clone()->startOfMinute());
-        }
-
-        return $stat;
     }
 }

@@ -9,354 +9,530 @@ class NodeMonitorService
 {
     public function __construct(
         private readonly MinuteStatRepository $minuteStatRepository,
-    )
-    {
+    ) {
     }
 
     /**
      * 获取网络监控数据
+     * @return array<string, mixed>
      */
     public function getNetworkMonitorData(Node $node): array
     {
         $now = new \DateTime();
 
-        // 获取过去24小时的时间点
-        $hours24 = [];
-        $labels24h = [];
-        $rxData24h = [];
-        $txData24h = [];
-
-        // 计算24小时前的时间点
-        $startTime24h = (clone $now)->modify('-24 hours');
-
-        for ($i = 0; $i < 24; $i++) {
-            $hour = (clone $startTime24h)->modify("+{$i} hours");
-            $hours24[] = $hour;
-            $labels24h[] = $hour->format('H:i');
-
-            // 默认值为0
-            $rxData24h[] = 0;
-            $txData24h[] = 0;
-        }
-
-        // 获取过去7天的日期
-        $days7 = [];
-        $labels7d = [];
-        $rxData7d = [];
-        $txData7d = [];
-
-        // 计算7天前的时间点
-        $startTime7d = (clone $now)->modify('-7 days')->setTime(0, 0, 0);
-
-        for ($i = 0; $i < 7; $i++) {
-            $day = (clone $startTime7d)->modify("+{$i} days");
-            $days7[] = $day;
-            $labels7d[] = $day->format('m-d');
-
-            // 默认值为0
-            $rxData7d[] = 0;
-            $txData7d[] = 0;
-        }
-
-        // 查询最近24小时的分钟统计数据
-        $qb24h = $this->minuteStatRepository->createQueryBuilder('s')
-            ->where('s.node = :node')
-            ->andWhere('s.datetime >= :startTime')
-            ->andWhere('s.datetime <= :endTime')
-            ->setParameter('node', $node)
-            ->setParameter('startTime', $startTime24h)
-            ->setParameter('endTime', $now)
-            ->orderBy('s.datetime', 'ASC');
-
-        $stats24h = $qb24h->getQuery()->getResult();
-
-        // 将分钟数据聚合到小时级别
-        $hourlyData = [];
-        foreach ($stats24h as $stat) {
-            $hourKey = $stat->getDatetime()->format('H');
-
-            if (!isset($hourlyData[$hourKey])) {
-                $hourlyData[$hourKey] = [
-                    'rx' => 0,
-                    'tx' => 0,
-                    'count' => 0
-                ];
-            }
-
-            // 确保是数字
-            $rx = $stat->getRxBandwidth() ? (int)$stat->getRxBandwidth() : 0;
-            $tx = $stat->getTxBandwidth() ? (int)$stat->getTxBandwidth() : 0;
-
-            $hourlyData[$hourKey]['rx'] += $rx;
-            $hourlyData[$hourKey]['tx'] += $tx;
-            $hourlyData[$hourKey]['count']++;
-        }
-
-        // 填充24小时数据
-        foreach ($hours24 as $index => $hour) {
-            $hourKey = $hour->format('H');
-
-            /** @phpstan-ignore-next-line */
-            if (isset($hourlyData[$hourKey]) && $hourlyData[$hourKey]['count'] > 0) {
-                // 计算该小时的平均值
-                $rxData24h[$index] = $hourlyData[$hourKey]['rx'] / $hourlyData[$hourKey]['count'];
-                $txData24h[$index] = $hourlyData[$hourKey]['tx'] / $hourlyData[$hourKey]['count'];
-            }
-        }
-
-        // 查询最近7天的分钟统计数据
-        $qb7d = $this->minuteStatRepository->createQueryBuilder('s')
-            ->where('s.node = :node')
-            ->andWhere('s.datetime >= :startTime')
-            ->andWhere('s.datetime <= :endTime')
-            ->setParameter('node', $node)
-            ->setParameter('startTime', $startTime7d)
-            ->setParameter('endTime', $now)
-            ->orderBy('s.datetime', 'ASC');
-
-        $stats7d = $qb7d->getQuery()->getResult();
-
-        // 将分钟数据聚合到天级别
-        $dailyData = [];
-        foreach ($stats7d as $stat) {
-            $dayKey = $stat->getDatetime()->format('m-d');
-
-            if (!isset($dailyData[$dayKey])) {
-                $dailyData[$dayKey] = [
-                    'rx' => 0,
-                    'tx' => 0,
-                    'count' => 0
-                ];
-            }
-
-            // 确保是数字
-            $rx = $stat->getRxBandwidth() ? (int)$stat->getRxBandwidth() : 0;
-            $tx = $stat->getTxBandwidth() ? (int)$stat->getTxBandwidth() : 0;
-
-            $dailyData[$dayKey]['rx'] += $rx;
-            $dailyData[$dayKey]['tx'] += $tx;
-            $dailyData[$dayKey]['count']++;
-        }
-
-        // 填充7天数据
-        foreach ($days7 as $index => $day) {
-            $dayKey = $day->format('m-d');
-
-            /** @phpstan-ignore-next-line */
-            if (isset($dailyData[$dayKey]) && $dailyData[$dayKey]['count'] > 0) {
-                // 计算该天的平均值
-                $rxData7d[$index] = $dailyData[$dayKey]['rx'] / $dailyData[$dayKey]['count'];
-                $txData7d[$index] = $dailyData[$dayKey]['tx'] / $dailyData[$dayKey]['count'];
-            }
-        }
+        $network24h = $this->get24HourNetworkData($node, $now);
+        $network7d = $this->get7DayNetworkData($node, $now);
 
         return [
-            'labels24h' => $labels24h,
-            'rxData24h' => $rxData24h,
-            'txData24h' => $txData24h,
-            'labels7d' => $labels7d,
-            'rxData7d' => $rxData7d,
-            'txData7d' => $txData7d,
+            'labels24h' => $network24h['labels'],
+            'rxData24h' => $network24h['rxData'],
+            'txData24h' => $network24h['txData'],
+            'labels7d' => $network7d['labels'],
+            'rxData7d' => $network7d['rxData'],
+            'txData7d' => $network7d['txData'],
         ];
     }
 
     /**
      * 获取负载监控数据
+     * @return array<string, mixed>
      */
     public function getLoadMonitorData(Node $node): array
     {
-        // 获取过去24小时的时间点
         $now = new \DateTime();
         $startTime = (clone $now)->modify('-24 hours');
 
-        $labels = [];
+        $stats = $this->getLoadStats($node, $startTime, $now);
+        $hourlyData = $this->aggregateLoadStatsByHour($stats);
 
-        // CPU数据数组
-        $cpuUserData = [];
-        $cpuSystemData = [];
-        $cpuStolenData = [];
-        $cpuIdleData = [];
+        return $this->processHourlyLoadData($hourlyData);
+    }
 
-        // 负载数据数组
-        $loadOneData = [];
-        $loadFiveData = [];
-        $loadFifteenData = [];
-
-        // 内存数据数组
-        $memoryTotalData = [];
-        $memoryUsedData = [];
-        $memoryFreeData = [];
-        $memoryAvailableData = [];
-
-        // 进程数据数组
-        $processRunningData = [];
-        $processTotalData = [];
-
-        // 查询最近24小时的负载数据
+    /**
+     * @param Node $node
+     * @param \DateTime $startTime
+     * @param \DateTime $endTime
+     * @return array<int, mixed>
+     */
+    private function getLoadStats(Node $node, \DateTime $startTime, \DateTime $endTime): array
+    {
         $qb = $this->minuteStatRepository->createQueryBuilder('s')
             ->where('s.node = :node')
             ->andWhere('s.datetime >= :startTime')
             ->andWhere('s.datetime <= :endTime')
             ->setParameter('node', $node)
             ->setParameter('startTime', $startTime)
-            ->setParameter('endTime', $now)
-            ->orderBy('s.datetime', 'ASC');
+            ->setParameter('endTime', $endTime)
+            ->orderBy('s.datetime', 'ASC')
+        ;
 
-        $stats = $qb->getQuery()->getResult();
+        return $qb->getQuery()->getResult();
+    }
 
-        // 按小时对数据进行分组
+    /**
+     * @param array<int, mixed> $stats
+     * @return array<string, mixed>
+     */
+    private function aggregateLoadStatsByHour(array $stats): array
+    {
         $hourlyData = [];
         foreach ($stats as $stat) {
             $hourKey = $stat->getDatetime()->format('Y-m-d H:00');
 
             if (!isset($hourlyData[$hourKey])) {
-                $hourlyData[$hourKey] = [
-                    'label' => $stat->getDatetime()->format('H:i'),
-                    'count' => 0,
-                    'cpuUser' => 0,
-                    'cpuSystem' => 0,
-                    'cpuStolen' => 0,
-                    'cpuIdle' => 0,
-                    'loadOne' => 0,
-                    'loadFive' => 0,
-                    'loadFifteen' => 0,
-                    'memoryTotal' => 0,
-                    'memoryUsed' => 0,
-                    'memoryFree' => 0,
-                    'memoryAvailable' => 0,
-                    'processRunning' => 0,
-                    'processTotal' => 0,
-                ];
+                $hourlyData[$hourKey] = $this->createEmptyHourData($stat);
             }
 
-            // 收集CPU数据
-            if ($stat->getCpuUserPercent() !== null) {
-                $hourlyData[$hourKey]['cpuUser'] += $stat->getCpuUserPercent();
-            }
-            if ($stat->getCpuSystemPercent() !== null) {
-                $hourlyData[$hourKey]['cpuSystem'] += $stat->getCpuSystemPercent();
-            }
-            if ($stat->getCpuStolenPercent() !== null) {
-                $hourlyData[$hourKey]['cpuStolen'] += $stat->getCpuStolenPercent();
-            }
-            if ($stat->getCpuIdlePercent() !== null) {
-                $hourlyData[$hourKey]['cpuIdle'] += $stat->getCpuIdlePercent();
-            }
-
-            // 收集负载数据
-            if ($stat->getLoadOneMinute() !== null) {
-                $hourlyData[$hourKey]['loadOne'] += (float)$stat->getLoadOneMinute();
-            }
-            if ($stat->getLoadFiveMinutes() !== null) {
-                $hourlyData[$hourKey]['loadFive'] += (float)$stat->getLoadFiveMinutes();
-            }
-            if ($stat->getLoadFifteenMinutes() !== null) {
-                $hourlyData[$hourKey]['loadFifteen'] += (float)$stat->getLoadFifteenMinutes();
-            }
-
-            // 收集内存数据
-            if ($stat->getMemoryTotal() !== null) {
-                $hourlyData[$hourKey]['memoryTotal'] += $stat->getMemoryTotal();
-            }
-            if ($stat->getMemoryUsed() !== null) {
-                $hourlyData[$hourKey]['memoryUsed'] += $stat->getMemoryUsed();
-            }
-            if ($stat->getMemoryFree() !== null) {
-                $hourlyData[$hourKey]['memoryFree'] += $stat->getMemoryFree();
-            }
-            if ($stat->getMemoryAvailable() !== null) {
-                $hourlyData[$hourKey]['memoryAvailable'] += $stat->getMemoryAvailable();
-            }
-
-            // 收集进程数据
-            if ($stat->getProcessRunning() !== null) {
-                $hourlyData[$hourKey]['processRunning'] += $stat->getProcessRunning();
-            }
-            if ($stat->getProcessTotal() !== null) {
-                $hourlyData[$hourKey]['processTotal'] += $stat->getProcessTotal();
-            }
-
-            $hourlyData[$hourKey]['count']++;
+            $hourlyData[$hourKey] = $this->collectStatData($hourlyData[$hourKey], $stat);
+            ++$hourlyData[$hourKey]['count'];
         }
 
-        // 计算总平均值(用于汇总卡片)
-        $totalData = [
+        return $hourlyData;
+    }
+
+    /**
+     * @param mixed $stat
+     * @return array<string, mixed>
+     */
+    private function createEmptyHourData($stat): array
+    {
+        return [
+            'label' => $stat->getDatetime()->format('H:i'),
+            'count' => 0,
+            'cpuUser' => 0,
+            'cpuSystem' => 0,
+            'cpuStolen' => 0,
+            'cpuIdle' => 0,
+            'loadOne' => 0,
+            'loadFive' => 0,
+            'loadFifteen' => 0,
+            'memoryTotal' => 0,
+            'memoryUsed' => 0,
+            'memoryFree' => 0,
+            'memoryAvailable' => 0,
+            'processRunning' => 0,
+            'processTotal' => 0,
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     */
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     * @return array<string, mixed>
+     */
+    private function collectStatData(array $hourData, $stat): array
+    {
+        $hourData = $this->collectCpuData($hourData, $stat);
+        $hourData = $this->collectLoadData($hourData, $stat);
+        $hourData = $this->collectMemoryData($hourData, $stat);
+
+        return $this->collectProcessData($hourData, $stat);
+    }
+
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     */
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     * @return array<string, mixed>
+     */
+    private function collectCpuData(array $hourData, $stat): array
+    {
+        if (null !== $stat->getCpuUserPercent()) {
+            $hourData['cpuUser'] += $stat->getCpuUserPercent();
+        }
+        if (null !== $stat->getCpuSystemPercent()) {
+            $hourData['cpuSystem'] += $stat->getCpuSystemPercent();
+        }
+        if (null !== $stat->getCpuStolenPercent()) {
+            $hourData['cpuStolen'] += $stat->getCpuStolenPercent();
+        }
+        if (null !== $stat->getCpuIdlePercent()) {
+            $hourData['cpuIdle'] += $stat->getCpuIdlePercent();
+        }
+
+        return $hourData;
+    }
+
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     */
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     * @return array<string, mixed>
+     */
+    private function collectLoadData(array $hourData, $stat): array
+    {
+        if (null !== $stat->getLoadOneMinute()) {
+            $hourData['loadOne'] += (float) $stat->getLoadOneMinute();
+        }
+        if (null !== $stat->getLoadFiveMinutes()) {
+            $hourData['loadFive'] += (float) $stat->getLoadFiveMinutes();
+        }
+        if (null !== $stat->getLoadFifteenMinutes()) {
+            $hourData['loadFifteen'] += (float) $stat->getLoadFifteenMinutes();
+        }
+
+        return $hourData;
+    }
+
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     */
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     * @return array<string, mixed>
+     */
+    private function collectMemoryData(array $hourData, $stat): array
+    {
+        if (null !== $stat->getMemoryTotal()) {
+            $hourData['memoryTotal'] += $stat->getMemoryTotal();
+        }
+        if (null !== $stat->getMemoryUsed()) {
+            $hourData['memoryUsed'] += $stat->getMemoryUsed();
+        }
+        if (null !== $stat->getMemoryFree()) {
+            $hourData['memoryFree'] += $stat->getMemoryFree();
+        }
+        if (null !== $stat->getMemoryAvailable()) {
+            $hourData['memoryAvailable'] += $stat->getMemoryAvailable();
+        }
+
+        return $hourData;
+    }
+
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     */
+    /**
+     * @param array<string, mixed> $hourData
+     * @param mixed $stat
+     * @return array<string, mixed>
+     */
+    private function collectProcessData(array $hourData, $stat): array
+    {
+        if (null !== $stat->getProcessRunning()) {
+            $hourData['processRunning'] += $stat->getProcessRunning();
+        }
+        if (null !== $stat->getProcessTotal()) {
+            $hourData['processTotal'] += $stat->getProcessTotal();
+        }
+
+        return $hourData;
+    }
+
+    /**
+     * @param array<string, mixed> $hourlyData
+     * @return array<string, mixed>
+     */
+    private function processHourlyLoadData(array $hourlyData): array
+    {
+        $result = $this->initializeResultArrays();
+        $totalData = $this->initializeTotalData();
+
+        foreach ($hourlyData as $data) {
+            $count = $data['count'];
+            if ($count > 0) {
+                $result = $this->addHourlyDataToResult($result, $data, $count);
+                $totalData = $this->addToTotalData($totalData, $data, $count);
+            }
+        }
+
+        $averages = $this->calculateFinalAverages($totalData);
+
+        return array_merge($result, $averages);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function initializeResultArrays(): array
+    {
+        return [
+            'labels' => [],
+            'cpuUserData' => [],
+            'cpuSystemData' => [],
+            'cpuStolenData' => [],
+            'cpuIdleData' => [],
+            'loadOneData' => [],
+            'loadFiveData' => [],
+            'loadFifteenData' => [],
+            'memoryTotalData' => [],
+            'memoryUsedData' => [],
+            'memoryFreeData' => [],
+            'memoryAvailableData' => [],
+            'processRunningData' => [],
+            'processTotalData' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function initializeTotalData(): array
+    {
+        return [
             'cpuUsage' => 0,
             'loadAvg' => 0,
             'memUsage' => 0,
             'process' => 0,
             'count' => 0,
         ];
+    }
 
-        // 处理分组后的数据并计算平均值
-        foreach ($hourlyData as $hour => $data) {
-            $count = $data['count'];
-            /** @phpstan-ignore-next-line */
-            if ($count > 0) {
-                // 添加时间标签
-                $labels[] = $data['label'];
+    /**
+     * @param array<string, mixed> $result
+     * @param array<string, mixed> $data
+     * @param int $count
+     */
+    /**
+     * @param array<string, mixed> $result
+     * @param array<string, mixed> $data
+     * @param int $count
+     * @return array<string, mixed>
+     */
+    private function addHourlyDataToResult(array $result, array $data, int $count): array
+    {
+        $result['labels'][] = $data['label'];
+        $result['cpuUserData'][] = $data['cpuUser'] / $count;
+        $result['cpuSystemData'][] = $data['cpuSystem'] / $count;
+        $result['cpuStolenData'][] = $data['cpuStolen'] / $count;
+        $result['cpuIdleData'][] = $data['cpuIdle'] / $count;
+        $result['loadOneData'][] = $data['loadOne'] / $count;
+        $result['loadFiveData'][] = $data['loadFive'] / $count;
+        $result['loadFifteenData'][] = $data['loadFifteen'] / $count;
+        $result['memoryTotalData'][] = $data['memoryTotal'] / $count;
+        $result['memoryUsedData'][] = $data['memoryUsed'] / $count;
+        $result['memoryFreeData'][] = $data['memoryFree'] / $count;
+        $result['memoryAvailableData'][] = $data['memoryAvailable'] / $count;
+        $result['processRunningData'][] = $data['processRunning'] / $count;
+        $result['processTotalData'][] = $data['processTotal'] / $count;
 
-                // 计算CPU平均值
-                $cpuUserData[] = $data['cpuUser'] / $count;
-                $cpuSystemData[] = $data['cpuSystem'] / $count;
-                $cpuStolenData[] = $data['cpuStolen'] / $count;
-                $cpuIdleData[] = $data['cpuIdle'] / $count;
+        return $result;
+    }
 
-                // 计算负载平均值
-                $loadOneData[] = $data['loadOne'] / $count;
-                $loadFiveData[] = $data['loadFive'] / $count;
-                $loadFifteenData[] = $data['loadFifteen'] / $count;
+    /**
+     * @param array<string, mixed> $totalData
+     * @param array<string, mixed> $data
+     * @param int $count
+     */
+    /**
+     * @param array<string, mixed> $totalData
+     * @param array<string, mixed> $data
+     * @param int $count
+     * @return array<string, mixed>
+     */
+    private function addToTotalData(array $totalData, array $data, int $count): array
+    {
+        $totalData['cpuUsage'] += (($data['cpuUser'] + $data['cpuSystem'] + $data['cpuStolen']) / $count);
+        $totalData['loadAvg'] += ($data['loadOne'] / $count);
 
-                // 计算内存平均值
-                $memoryTotalData[] = $data['memoryTotal'] / $count;
-                $memoryUsedData[] = $data['memoryUsed'] / $count;
-                $memoryFreeData[] = $data['memoryFree'] / $count;
-                $memoryAvailableData[] = $data['memoryAvailable'] / $count;
+        if ($data['memoryTotal'] > 0) {
+            $memUsage = ($data['memoryUsed'] / $data['memoryTotal']) * 100;
+            $totalData['memUsage'] += $memUsage;
+        }
 
-                // 计算进程平均值
-                $processRunningData[] = $data['processRunning'] / $count;
-                $processTotalData[] = $data['processTotal'] / $count;
+        $totalData['process'] += ($data['processTotal'] / $count);
+        ++$totalData['count'];
 
-                // 累加总平均值计算
-                $totalData['cpuUsage'] += (($data['cpuUser'] + $data['cpuSystem'] + $data['cpuStolen']) / $count);
-                $totalData['loadAvg'] += ($data['loadOne'] / $count);
+        return $totalData;
+    }
 
-                // 计算内存使用率
-                if ($data['memoryTotal'] > 0) {
-                    $memUsage = ($data['memoryUsed'] / $data['memoryTotal']) * 100;
-                    $totalData['memUsage'] += $memUsage;
-                }
+    /**
+     * @param array<string, mixed> $totalData
+     * @return array<string, mixed>
+     */
+    private function calculateFinalAverages(array $totalData): array
+    {
+        $count = $totalData['count'];
 
-                $totalData['process'] += ($data['processTotal'] / $count);
-                $totalData['count']++;
+        return [
+            'avgCpuUsage' => $count > 0 ? $totalData['cpuUsage'] / $count : 0,
+            'avgLoad' => $count > 0 ? $totalData['loadAvg'] / $count : 0,
+            'avgMemUsage' => $count > 0 ? $totalData['memUsage'] / $count : 0,
+            'avgProcess' => $count > 0 ? $totalData['process'] / $count : 0,
+        ];
+    }
+
+    /**
+     * @param Node $node
+     * @param \DateTime $now
+     * @return array<string, mixed>
+     */
+    private function get24HourNetworkData(Node $node, \DateTime $now): array
+    {
+        $startTime = (clone $now)->modify('-24 hours');
+        $timeSlots = $this->generate24HourSlots($startTime);
+
+        $stats = $this->getNetworkStats($node, $startTime, $now);
+        $hourlyData = $this->aggregateByHour($stats);
+
+        return $this->fillNetworkData($timeSlots, $hourlyData, 'H:i', 'H');
+    }
+
+    /**
+     * @param Node $node
+     * @param \DateTime $now
+     * @return array<string, mixed>
+     */
+    private function get7DayNetworkData(Node $node, \DateTime $now): array
+    {
+        $startTime = (clone $now)->modify('-7 days')->setTime(0, 0, 0);
+        $timeSlots = $this->generate7DaySlots($startTime);
+
+        $stats = $this->getNetworkStats($node, $startTime, $now);
+        $dailyData = $this->aggregateByDay($stats);
+
+        return $this->fillNetworkData($timeSlots, $dailyData, 'm-d', 'm-d');
+    }
+
+    /**
+     * @param \DateTime $startTime
+     * @return array<int, \DateTime>
+     */
+    private function generate24HourSlots(\DateTime $startTime): array
+    {
+        $slots = [];
+        for ($i = 0; $i < 24; ++$i) {
+            $slots[] = (clone $startTime)->modify("+{$i} hours");
+        }
+
+        return $slots;
+    }
+
+    /**
+     * @param \DateTime $startTime
+     * @return array<int, \DateTime>
+     */
+    private function generate7DaySlots(\DateTime $startTime): array
+    {
+        $slots = [];
+        for ($i = 0; $i < 7; ++$i) {
+            $slots[] = (clone $startTime)->modify("+{$i} days");
+        }
+
+        return $slots;
+    }
+
+    /**
+     * @param Node $node
+     * @param \DateTime $startTime
+     * @param \DateTime $endTime
+     * @return array<int, mixed>
+     */
+    private function getNetworkStats(Node $node, \DateTime $startTime, \DateTime $endTime): array
+    {
+        $qb = $this->minuteStatRepository->createQueryBuilder('s')
+            ->where('s.node = :node')
+            ->andWhere('s.datetime >= :startTime')
+            ->andWhere('s.datetime <= :endTime')
+            ->setParameter('node', $node)
+            ->setParameter('startTime', $startTime)
+            ->setParameter('endTime', $endTime)
+            ->orderBy('s.datetime', 'ASC')
+        ;
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
+     * @param array<int, mixed> $stats
+     * @return array<string, mixed>
+     */
+    private function aggregateByHour(array $stats): array
+    {
+        $aggregated = [];
+        foreach ($stats as $stat) {
+            $key = $stat->getDatetime()->format('H');
+            $aggregated = $this->addNetworkDataToAggregate($aggregated, $key, $stat);
+        }
+
+        return $aggregated;
+    }
+
+    /**
+     * @param array<int, mixed> $stats
+     * @return array<string, mixed>
+     */
+    private function aggregateByDay(array $stats): array
+    {
+        $aggregated = [];
+        foreach ($stats as $stat) {
+            $key = $stat->getDatetime()->format('m-d');
+            $aggregated = $this->addNetworkDataToAggregate($aggregated, $key, $stat);
+        }
+
+        return $aggregated;
+    }
+
+    /**
+     * @param array<string, mixed> $aggregated
+     * @param string $key
+     * @param mixed $stat
+     */
+    /**
+     * @param array<string, mixed> $aggregated
+     * @param string $key
+     * @param mixed $stat
+     * @return array<string, mixed>
+     */
+    private function addNetworkDataToAggregate(array $aggregated, string $key, $stat): array
+    {
+        if (!isset($aggregated[$key])) {
+            $aggregated[$key] = ['rx' => 0, 'tx' => 0, 'count' => 0];
+        }
+
+        $rx = $stat->getRxBandwidth() ? (int) $stat->getRxBandwidth() : 0;
+        $tx = $stat->getTxBandwidth() ? (int) $stat->getTxBandwidth() : 0;
+
+        $aggregated[$key]['rx'] += $rx;
+        $aggregated[$key]['tx'] += $tx;
+        ++$aggregated[$key]['count'];
+
+        return $aggregated;
+    }
+
+    /**
+     * @param array<int, \DateTime> $timeSlots
+     * @param array<string, mixed> $aggregatedData
+     * @param string $labelFormat
+     * @param string $keyFormat
+     * @return array<string, mixed>
+     */
+    private function fillNetworkData(array $timeSlots, array $aggregatedData, string $labelFormat, string $keyFormat): array
+    {
+        $labels = [];
+        $rxData = [];
+        $txData = [];
+
+        foreach ($timeSlots as $slot) {
+            $labels[] = $slot->format($labelFormat);
+            $key = $slot->format($keyFormat);
+
+            if (isset($aggregatedData[$key]) && $aggregatedData[$key]['count'] > 0) {
+                $rxData[] = $aggregatedData[$key]['rx'] / $aggregatedData[$key]['count'];
+                $txData[] = $aggregatedData[$key]['tx'] / $aggregatedData[$key]['count'];
+            } else {
+                $rxData[] = 0;
+                $txData[] = 0;
             }
         }
 
-        // 计算所有小时的平均值
-        $avgCpuUsage = $totalData['count'] > 0 ? $totalData['cpuUsage'] / $totalData['count'] : 0;
-        $avgLoad = $totalData['count'] > 0 ? $totalData['loadAvg'] / $totalData['count'] : 0;
-        $avgMemUsage = $totalData['count'] > 0 ? $totalData['memUsage'] / $totalData['count'] : 0;
-        $avgProcess = $totalData['count'] > 0 ? $totalData['process'] / $totalData['count'] : 0;
-
         return [
             'labels' => $labels,
-            'cpuUserData' => $cpuUserData,
-            'cpuSystemData' => $cpuSystemData,
-            'cpuStolenData' => $cpuStolenData,
-            'cpuIdleData' => $cpuIdleData,
-            'loadOneData' => $loadOneData,
-            'loadFiveData' => $loadFiveData,
-            'loadFifteenData' => $loadFifteenData,
-            'memoryTotalData' => $memoryTotalData,
-            'memoryUsedData' => $memoryUsedData,
-            'memoryFreeData' => $memoryFreeData,
-            'memoryAvailableData' => $memoryAvailableData,
-            'processRunningData' => $processRunningData,
-            'processTotalData' => $processTotalData,
-            'avgCpuUsage' => $avgCpuUsage,
-            'avgLoad' => $avgLoad,
-            'avgMemUsage' => $avgMemUsage,
-            'avgProcess' => $avgProcess,
+            'rxData' => $rxData,
+            'txData' => $txData,
         ];
     }
 }

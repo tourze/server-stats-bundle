@@ -4,6 +4,7 @@ namespace ServerStatsBundle\Controller;
 
 use Carbon\CarbonImmutable;
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Attribute\WithMonologChannel;
 use Psr\Log\LoggerInterface;
 use ServerNodeBundle\Entity\Node;
 use ServerNodeBundle\Enum\NodeStatus;
@@ -23,7 +24,8 @@ use Symfony\Component\Routing\Attribute\Route;
 use Yiisoft\Arrays\ArrayHelper;
 use Yiisoft\Json\Json;
 
-class LoadConditionsController extends AbstractController
+#[WithMonologChannel(channel: 'server_stats')]
+final class LoadConditionsController extends AbstractController
 {
     public function __construct(
         #[Autowire(service: 'cache.app')] private readonly AdapterInterface $cache,
@@ -32,8 +34,7 @@ class LoadConditionsController extends AbstractController
         private readonly DailyTrafficRepository $dailyTrafficRepository,
         private readonly MonthlyTrafficRepository $monthlyTrafficRepository,
         private readonly LoggerInterface $logger,
-    )
-    {
+    ) {
     }
 
     #[Route(path: '/api/load_conditions/', methods: 'POST')]
@@ -46,25 +47,40 @@ class LoadConditionsController extends AbstractController
         ]);
 
         $now = CarbonImmutable::now();
-        $today = $now->startOfDay();
-
         $node = $this->getNodeFromRequest($request);
-        if ($node === null) {
+        if (null === $node) {
             throw new BadRequestException('Invalid node identification');
         }
 
+        $this->updateNodeCache($node);
+        $nodeLoadConditionsDic = Json::decode($request->getContent());
+        $this->updateNodeIpIfChanged($node, $request);
+
+        if (NodeStatus::MAINTAIN === $node->getStatus()) {
+            $this->logger->warning('维护中的节点先不存信息, 避免流量重复存储', [
+                'nodeId' => $node->getId(),
+            ]);
+
+            return new Response('success');
+        }
+
+        $this->saveTrafficData($node, $nodeLoadConditionsDic, $now, $request);
+        $this->saveMinuteStatIfNeeded($node, $nodeLoadConditionsDic, $now);
+        $this->updateNodeStatusIfNeeded($node);
+
+        return $this->json(['msg' => 'success']);
+    }
+
+    private function updateNodeCache(Node $node): void
+    {
         $cacheItem = $this->cache->getItem('REDIS_ONLINE_NODE_' . $node->getId());
         $cacheItem->set(1);
         $cacheItem->expiresAfter(480);
         $this->cache->save($cacheItem);
+    }
 
-        $nodeLoadConditionsDic = Json::decode($request->getContent());
-        $cpuUsedPercentage = $nodeLoadConditionsDic['cpuUsedPercentage'];
-        $totalRam = $nodeLoadConditionsDic['totalRam'];
-        $ramUsed = $nodeLoadConditionsDic['ramUsed'];
-        $loadConditions = $nodeLoadConditionsDic['loadConditions'];
-
-        // 获取并检查IP变更
+    private function updateNodeIpIfChanged(Node $node, Request $request): void
+    {
         $nodeIp = $request->getClientIp();
         if ($nodeIp !== $node->getOnlineIp()) {
             $node->setOnlineIp($nodeIp);
@@ -77,29 +93,34 @@ class LoadConditionsController extends AbstractController
                 'newIp' => $nodeIp,
             ]);
         }
+    }
 
-        if (NodeStatus::MAINTAIN === $node->getStatus()) {
-            $this->logger->warning('维护中的节点先不存信息, 避免流量重复存储', [
-                'nodeId' => $node->getId(),
-            ]);
-            return new Response('success');
-        }
+    /**
+     * @param array<string, mixed> $nodeLoadConditionsDic
+     */
+    private function saveTrafficData(Node $node, array $nodeLoadConditionsDic, CarbonImmutable $now, Request $request): void
+    {
+        $nodeIp = $request->getClientIp() ?? '0.0.0.0';
+        $today = $now->startOfDay();
 
-        $todayTx = $nodeLoadConditionsDic['todayTx']; // 流量单位 byte
-        $todayRx = $nodeLoadConditionsDic['todayRx']; // 流量单位 byte
-        $monthRx = $nodeLoadConditionsDic['monthRx']; // 流量单位 byte
-        $monthTx = $nodeLoadConditionsDic['monthTx']; // 流量单位 byte
-        $avgRate = $nodeLoadConditionsDic['avgRate']; // 五分钟平均速率 KBytes/S
+        $this->saveDailyTraffic($node, $nodeLoadConditionsDic, $today, $nodeIp);
+        $this->saveMonthlyTraffic($node, $nodeLoadConditionsDic, $now, $nodeIp);
+    }
 
-        $fiveTx = ArrayHelper::getValue($nodeLoadConditionsDic, 'fiveTx', 0); // 五分钟 Tx 速率 byte
-        $fiveRx = ArrayHelper::getValue($nodeLoadConditionsDic, 'fiveRx', 0); // 五分钟 Rx 速率 byte
+    /**
+     * @param array<string, mixed> $nodeLoadConditionsDic
+     */
+    private function saveDailyTraffic(Node $node, array $nodeLoadConditionsDic, CarbonImmutable $today, string $nodeIp): void
+    {
+        $todayTx = $nodeLoadConditionsDic['todayTx'];
+        $todayRx = $nodeLoadConditionsDic['todayRx'];
 
-        // 日流量入库
         $nodeTrafficDay = $this->dailyTrafficRepository->findOneBy([
             'node' => $node,
             'date' => $today,
         ]);
-        if ($nodeTrafficDay === null) {
+
+        if (null === $nodeTrafficDay) {
             $nodeTrafficDay = new DailyTraffic();
             $nodeTrafficDay->setNode($node);
             $nodeTrafficDay->setDate($today);
@@ -107,21 +128,32 @@ class LoadConditionsController extends AbstractController
             $nodeTrafficDay->setRx('0');
             $nodeTrafficDay->setTx('0');
         }
+
         if ($nodeTrafficDay->getRx() < $todayRx) {
             $nodeTrafficDay->setRx($todayRx);
         }
         if ($nodeTrafficDay->getTx() < $todayTx) {
             $nodeTrafficDay->setTx($todayTx);
         }
+
         $this->entityManager->persist($nodeTrafficDay);
         $this->entityManager->flush();
+    }
 
-        // 月流量入库
+    /**
+     * @param array<string, mixed> $nodeLoadConditionsDic
+     */
+    private function saveMonthlyTraffic(Node $node, array $nodeLoadConditionsDic, CarbonImmutable $now, string $nodeIp): void
+    {
+        $monthRx = $nodeLoadConditionsDic['monthRx'];
+        $monthTx = $nodeLoadConditionsDic['monthTx'];
+
         $nodeTrafficMonth = $this->monthlyTrafficRepository->findOneBy([
             'node' => $node,
             'month' => $now->format('Y-m'),
         ]);
-        if ($nodeTrafficMonth === null) {
+
+        if (null === $nodeTrafficMonth) {
             $nodeTrafficMonth = new MonthlyTraffic();
             $nodeTrafficMonth->setNode($node);
             $nodeTrafficMonth->setMonth($now->format('Y-m'));
@@ -129,86 +161,111 @@ class LoadConditionsController extends AbstractController
             $nodeTrafficMonth->setRx('0');
             $nodeTrafficMonth->setTx('0');
         }
+
         if ($nodeTrafficMonth->getRx() < $monthRx) {
             $nodeTrafficMonth->setRx($monthRx);
         }
         if ($nodeTrafficMonth->getTx() < $monthTx) {
             $nodeTrafficMonth->setTx($monthTx);
         }
+
         $this->entityManager->persist($nodeTrafficMonth);
         $this->entityManager->flush();
+    }
 
-        // 五分钟平均速率获取
+    /**
+     * @param array<string, mixed> $nodeLoadConditionsDic
+     */
+    private function saveMinuteStatIfNeeded(Node $node, array $nodeLoadConditionsDic, CarbonImmutable $now): void
+    {
+        $fiveTx = ArrayHelper::getValue($nodeLoadConditionsDic, 'fiveTx', 0);
+        $fiveRx = ArrayHelper::getValue($nodeLoadConditionsDic, 'fiveRx', 0);
+
         $lastTxItem = $this->cache->getItem('LAST_FIVE_NODE_TX_' . $node->getId());
         $lastTx = $lastTxItem->isHit() ? $lastTxItem->get() : 0;
         $lastRxItem = $this->cache->getItem('LAST_FIVE_NODE_RX_' . $node->getId());
         $lastRx = $lastRxItem->isHit() ? $lastRxItem->get() : 0;
-        if ($lastTx != $fiveTx || $lastRx != $fiveRx) {
-            // 因为是 5 分钟才变化一次 这里只保存 5分钟的值
-            $txCacheItem = $this->cache->getItem('LAST_FIVE_NODE_TX_' . $node->getId());
-            $txCacheItem->set($fiveTx);
-            $txCacheItem->expiresAfter(60 * 60 * 24);
-            $this->cache->save($txCacheItem);
 
-            $rxCacheItem = $this->cache->getItem('LAST_FIVE_NODE_RX_' . $node->getId());
-            $rxCacheItem->set($fiveRx);
-            $rxCacheItem->expiresAfter(60 * 60 * 24);
-            $this->cache->save($rxCacheItem);
+        if ($lastTx !== $fiveTx || $lastRx !== $fiveRx) {
+            $this->updateTrafficCache($node, $fiveTx, $fiveRx);
+            $this->createMinuteStat($node, $nodeLoadConditionsDic, $now, $fiveTx, $fiveRx);
+        }
+    }
 
-            $bytesSent2min = $fiveTx / 300; // bytes
-            $bytesRecv2min = $fiveRx / 300; // bytes
+    private function updateTrafficCache(Node $node, int $fiveTx, int $fiveRx): void
+    {
+        $txCacheItem = $this->cache->getItem('LAST_FIVE_NODE_TX_' . $node->getId());
+        $txCacheItem->set($fiveTx);
+        $txCacheItem->expiresAfter(60 * 60 * 24);
+        $this->cache->save($txCacheItem);
 
-            // 记录到MinuteStat
-            $minuteStat = new MinuteStat();
-            $minuteStat->setNode($node);
-            $minuteStat->setDatetime($now);
+        $rxCacheItem = $this->cache->getItem('LAST_FIVE_NODE_RX_' . $node->getId());
+        $rxCacheItem->set($fiveRx);
+        $rxCacheItem->expiresAfter(60 * 60 * 24);
+        $this->cache->save($rxCacheItem);
+    }
 
-            // 解析 loadConditions 字符串数据 (来自 /proc/loadavg)
-            // 格式: "0.06 0.04 0.05 1/776 17\n"
-            $loadData = null;
-            if (is_string($loadConditions) && trim($loadConditions) !== '') {
-                $parts = explode(' ', trim($loadConditions));
-                if (count($parts) >= 3) {
-                    $loadData = [
-                        '1min' => (float)$parts[0],
-                        '5min' => (float)$parts[1],
-                        '15min' => (float)$parts[2],
-                    ];
-                }
-            }
+    /**
+     * @param array<string, mixed> $nodeLoadConditionsDic
+     */
+    private function createMinuteStat(Node $node, array $nodeLoadConditionsDic, CarbonImmutable $now, int $fiveTx, int $fiveRx): void
+    {
+        $totalRam = $nodeLoadConditionsDic['totalRam'];
+        $ramUsed = $nodeLoadConditionsDic['ramUsed'];
+        $loadConditions = $nodeLoadConditionsDic['loadConditions'];
 
-            // 设置负载数据
-            if ($loadData !== null) {
-                $minuteStat->setLoadOneMinute((string)$loadData['1min']);
-                $minuteStat->setLoadFiveMinutes((string)$loadData['5min']);
-                $minuteStat->setLoadFifteenMinutes((string)$loadData['15min']);
-            }
+        $bytesSent2min = $fiveTx / 300;
+        $bytesRecv2min = $fiveRx / 300;
 
-            // 设置内存数据
-            $minuteStat->setMemoryTotal($totalRam);
-            $minuteStat->setMemoryUsed($ramUsed);
-            $minuteStat->setMemoryFree($totalRam - $ramUsed);
+        $minuteStat = new MinuteStat();
+        $minuteStat->setNode($node);
+        $minuteStat->setDatetime($now);
 
-            // 设置网络数据
-            $minuteStat->setRxBandwidth((string)$bytesRecv2min);
-            $minuteStat->setTxBandwidth((string)$bytesSent2min);
-
-            $this->entityManager->persist($minuteStat);
-            $this->entityManager->flush();
-
-            // 统计节点使用流量和在线用户
-            // Note: Node实体暂无usedTraffic字段，此处记录流量统计但不更新节点
-            $nodeUsedTraffic = $fiveTx; // 计算2分钟之间的流量差. 用于写入数据库
+        $loadData = $this->parseLoadConditions($loadConditions);
+        if (null !== $loadData) {
+            $minuteStat->setLoadOneMinute((string) $loadData['1min']);
+            $minuteStat->setLoadFiveMinutes((string) $loadData['5min']);
+            $minuteStat->setLoadFifteenMinutes((string) $loadData['15min']);
         }
 
-        // 离线或初始化的节点 立刻上线
-        if (in_array($node->getStatus(), [NodeStatus::INIT, NodeStatus::OFFLINE])) {
+        $minuteStat->setMemoryTotal($totalRam);
+        $minuteStat->setMemoryUsed($ramUsed);
+        $minuteStat->setMemoryFree($totalRam - $ramUsed);
+        $minuteStat->setRxBandwidth((string) $bytesRecv2min);
+        $minuteStat->setTxBandwidth((string) $bytesSent2min);
+
+        $this->entityManager->persist($minuteStat);
+        $this->entityManager->flush();
+    }
+
+    /**
+     * @return array<string, float>|null
+     */
+    private function parseLoadConditions(mixed $loadConditions): ?array
+    {
+        if (!is_string($loadConditions) || '' === trim($loadConditions)) {
+            return null;
+        }
+
+        $parts = explode(' ', trim($loadConditions));
+        if (count($parts) < 3) {
+            return null;
+        }
+
+        return [
+            '1min' => (float) $parts[0],
+            '5min' => (float) $parts[1],
+            '15min' => (float) $parts[2],
+        ];
+    }
+
+    private function updateNodeStatusIfNeeded(Node $node): void
+    {
+        if (in_array($node->getStatus(), [NodeStatus::INIT, NodeStatus::OFFLINE], true)) {
             $node->setStatus(NodeStatus::ONLINE);
             $this->entityManager->persist($node);
             $this->entityManager->flush();
         }
-
-        return $this->json(['msg' => 'success']);
     }
 
     /**
@@ -219,36 +276,38 @@ class LoadConditionsController extends AbstractController
     {
         // 方式1: 通过query参数node_id
         if ($request->query->has('node_id')) {
-            return $this->nodeRepository->find($request->query->get('node_id'));
+            $node = $this->nodeRepository->find($request->query->get('node_id'));
+
+            return $node instanceof Node ? $node : null;
         }
 
         // 方式2: 通过Authorization头
         $authorization = $request->headers->get('authorization');
-        if ($authorization === null) {
+        if (null === $authorization) {
             return null;
         }
 
         $parts = explode('|', $authorization);
-        if (count($parts) !== 4) {
+        if (4 !== count($parts)) {
             return null;
         }
 
         [$apiKey, $nonceStr, $signature, $timestamp] = $parts;
 
         // 时间戳校验 (允许10分钟误差)
-        if (abs(time() - (int)$timestamp) > 600) {
+        if (abs(time() - (int) $timestamp) > 600) {
             return null;
         }
 
         // 根据API_KEY查找对应的节点
         $node = $this->nodeRepository->findOneBy(['apiKey' => $apiKey]);
-        if ($node === null) {
+        if (null === $node || !$node instanceof Node) {
             return null;
         }
 
         // 校验签名是否正确
         $apiSecret = $node->getApiSecret();
-        if ($apiSecret === null) {
+        if (null === $apiSecret) {
             return null;
         }
 

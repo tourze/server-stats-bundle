@@ -2,6 +2,7 @@
 
 namespace ServerStatsBundle\Controller\Admin;
 
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminCrud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -17,7 +18,11 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use ServerStatsBundle\Entity\MinuteStat;
 
-class MinuteStatCrudController extends AbstractCrudController
+/**
+ * @extends AbstractCrudController<MinuteStat>
+ */
+#[AdminCrud(routePath: '/server-stats/minute-stat', routeName: 'server_stats_minute_stat')]
+final class MinuteStatCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
@@ -33,124 +38,153 @@ class MinuteStatCrudController extends AbstractCrudController
             ->setHelp('index', '查看服务器节点的性能统计数据，包括CPU、内存、网络等监控指标')
             ->setDefaultSort(['datetime' => 'DESC'])
             ->setSearchFields(['id', 'node.name'])
-            ->setPaginatorPageSize(50);
+            ->setPaginatorPageSize(50)
+        ;
     }
 
     public function configureFields(string $pageName): iterable
     {
-        yield IdField::new('id')
+        yield IdField::new('id', 'ID')
             ->setMaxLength(9999)
-            ->hideOnForm();
-            
+            ->hideOnForm()
+        ;
+
         yield AssociationField::new('node', '节点')
-            ->setFormTypeOption('disabled', $pageName !== Crud::PAGE_NEW);
-            
+            ->setFormTypeOption('disabled', Crud::PAGE_NEW !== $pageName)
+        ;
+
         yield DateTimeField::new('datetime', '时间点')
             ->setFormTypeOptions([
                 'html5' => true,
                 'widget' => 'single_text',
-            ]);
-            
+            ])
+        ;
+
         yield FormField::addPanel('CPU指标')
-            ->setIcon('fa fa-microchip');
-            
+            ->setIcon('fa fa-microchip')
+        ;
+
         yield IntegerField::new('cpuSystemPercent', '系统CPU%');
         yield IntegerField::new('cpuUserPercent', '用户CPU%');
         yield IntegerField::new('cpuStolenPercent', '被偷CPU%')
-            ->hideOnIndex();
+            ->hideOnIndex()
+        ;
         yield IntegerField::new('cpuIdlePercent', '空闲CPU%');
-        
+
         yield FormField::addPanel('负载指标')
-            ->setIcon('fa fa-chart-line');
-            
+            ->setIcon('fa fa-chart-line')
+        ;
+
         yield NumberField::new('loadOneMinute', '1分钟负载')
-            ->setNumDecimals(2);
+            ->setNumDecimals(2)
+        ;
         yield NumberField::new('loadFiveMinutes', '5分钟负载')
             ->setNumDecimals(2)
-            ->hideOnIndex();
+            ->hideOnIndex()
+        ;
         yield NumberField::new('loadFifteenMinutes', '15分钟负载')
             ->setNumDecimals(2)
-            ->hideOnIndex();
-            
+            ->hideOnIndex()
+        ;
+
         yield FormField::addPanel('进程')
             ->setIcon('fa fa-tasks')
-            ->hideOnIndex();
-            
+            ->hideOnIndex()
+        ;
+
         yield IntegerField::new('processRunning', '运行进程数');
         yield IntegerField::new('processTotal', '总进程数');
-        
+
         yield FormField::addPanel('内存')
-            ->setIcon('fa fa-memory');
-            
+            ->setIcon('fa fa-memory')
+        ;
+
         yield IntegerField::new('memoryTotal', '总内存')
             ->formatValue(function ($value) {
                 if (!$value) {
                     return null;
                 }
+
                 return $this->formatBytes($value);
-            });
-            
+            })
+        ;
+
         yield IntegerField::new('memoryUsed', '已用内存')
             ->formatValue(function ($value) {
                 if (!$value) {
                     return null;
                 }
+
                 return $this->formatBytes($value);
-            });
-            
+            })
+        ;
+
         yield IntegerField::new('memoryFree', '空闲内存')
             ->hideOnIndex()
             ->formatValue(function ($value) {
                 if (!$value) {
                     return null;
                 }
+
                 return $this->formatBytes($value);
-            });
-            
+            })
+        ;
+
         yield IntegerField::new('memoryAvailable', '可用内存')
             ->hideOnIndex()
             ->formatValue(function ($value) {
                 if (!$value) {
                     return null;
                 }
+
                 return $this->formatBytes($value);
-            });
-            
+            })
+        ;
+
         yield FormField::addPanel('网络')
-            ->setIcon('fa fa-network-wired');
-            
+            ->setIcon('fa fa-network-wired')
+        ;
+
         yield IntegerField::new('rxBandwidth', '入带宽')
             ->formatValue(function ($value) {
                 if (!$value) {
                     return null;
                 }
+
                 return $this->formatBandwidth($value);
-            });
-            
+            })
+        ;
+
         yield IntegerField::new('txBandwidth', '出带宽')
             ->formatValue(function ($value) {
                 if (!$value) {
                     return null;
                 }
+
                 return $this->formatBandwidth($value);
-            });
-            
+            })
+        ;
+
         yield IntegerField::new('rxPackets', '入包量')
-            ->hideOnIndex();
-            
+            ->hideOnIndex()
+        ;
+
         yield IntegerField::new('txPackets', '出包量')
-            ->hideOnIndex();
-            
+            ->hideOnIndex()
+        ;
+
         yield FormField::addPanel('TCP连接')
             ->setIcon('fa fa-plug')
-            ->hideOnIndex();
-            
+            ->hideOnIndex()
+        ;
+
         yield IntegerField::new('tcpEstab', 'TCP连接数');
         yield IntegerField::new('tcpListen', 'TCP监听数');
         yield IntegerField::new('udpCount', 'UDP监听数');
-        
+
         yield DateTimeField::new('createTime', '创建时间')
-            ->hideOnForm();
+            ->hideOnForm()
+        ;
     }
 
     public function configureFilters(Filters $filters): Filters
@@ -158,45 +192,40 @@ class MinuteStatCrudController extends AbstractCrudController
         return $filters
             ->add(EntityFilter::new('node', '节点'))
             ->add(DateTimeFilter::new('datetime', '时间点'))
-            ->add(DateTimeFilter::new('createTime', '创建时间'));
+            ->add(DateTimeFilter::new('createTime', '创建时间'))
+        ;
     }
 
     public function configureActions(Actions $actions): Actions
     {
         return $actions
             ->disable(Action::NEW, Action::EDIT)
-            ->update(Crud::PAGE_INDEX, Action::DELETE, fn (Action $action) => $action->setIcon('fa fa-trash'));
+        ;
     }
-    
-    /**
-     * 格式化字节大小
-     */
-    private function formatBytes($bytes, $precision = 2): string
+
+    private function formatBytes(int $bytes, int $precision = 2): string
     {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        
-        $bytes = max((int)$bytes, 0);
+
+        $bytes = max($bytes, 0);
         $pow = floor(($bytes > 0 ? log($bytes) : 0) / log(1024));
         $pow = min($pow, count($units) - 1);
-        
-        $bytes /= (1 << (10 * $pow));
-        
-        return round($bytes, $precision) . ' ' . $units[$pow];
+
+        $bytes /= (1 << (10 * (int) $pow));
+
+        return round($bytes, $precision) . ' ' . $units[(int) $pow];
     }
-    
-    /**
-     * 格式化带宽
-     */
-    private function formatBandwidth($bps, $precision = 2): string
+
+    private function formatBandwidth(int $bps, int $precision = 2): string
     {
         $units = ['bps', 'Kbps', 'Mbps', 'Gbps', 'Tbps'];
-        
-        $bps = max((int)$bps, 0);
+
+        $bps = max($bps, 0);
         $pow = floor(($bps > 0 ? log($bps) : 0) / log(1000));
         $pow = min($pow, count($units) - 1);
-        
-        $bps /= (1000 ** $pow);
-        
-        return round($bps, $precision) . ' ' . $units[$pow];
+
+        $bps /= (1000 ** (int) $pow);
+
+        return round($bps, $precision) . ' ' . $units[(int) $pow];
     }
 }

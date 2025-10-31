@@ -3,47 +3,75 @@
 namespace ServerStatsBundle\DataFixtures;
 
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 use ServerNodeBundle\DataFixtures\NodeFixtures;
 use ServerNodeBundle\Entity\Node;
 use ServerStatsBundle\Entity\DailyTraffic;
+use Symfony\Component\DependencyInjection\Attribute\When;
 
-class DailyTrafficFixtures extends Fixture implements DependentFixtureInterface
+/**
+ * 日流量数据填充
+ * 生成测试用的日流量统计数据
+ */
+#[When(env: 'test')]
+#[When(env: 'dev')]
+class DailyTrafficFixtures extends Fixture implements DependentFixtureInterface, FixtureGroupInterface
 {
+    public const DAILY_TRAFFIC_PREFIX = 'daily-traffic-';
+
+    public static function getGroups(): array
+    {
+        return ['test', 'dev'];
+    }
+
     public function load(ObjectManager $manager): void
     {
-        $node1 = $this->getReference(NodeFixtures::REFERENCE_NODE_1, Node::class);
-        $node2 = $this->getReference(NodeFixtures::REFERENCE_NODE_2, Node::class);
+        // IP地址列表
+        $ipAddresses = [
+            '192.168.1.10',
+            '10.0.0.15',
+            '172.16.0.5',
+            '203.0.113.100',
+            '198.51.100.200',
+        ];
 
-        // 为node1创建7天的流量数据
-        for ($i = 7; $i >= 0; $i--) {
-            $date = new \DateTime();
-            $date->modify("-$i days");
+        // 获取可用的节点引用
+        $nodeRefs = [
+            NodeFixtures::REFERENCE_NODE_1,
+            NodeFixtures::REFERENCE_NODE_2,
+        ];
 
-            $traffic = new DailyTraffic();
-            $traffic->setNode($node1);
-            $traffic->setIp('192.168.1.100');
-            $traffic->setDate($date);
-            $traffic->setRx((string)(1000000 + $i * 100000)); // 下行流量增长
-            $traffic->setTx((string)(500000 + $i * 50000));   // 上行流量增长
+        $refIndex = 0;
 
-            $manager->persist($traffic);
-        }
+        // 为每个节点生成过去15天的数据
+        foreach ($nodeRefs as $nodeRef) {
+            $node = $this->getReference($nodeRef, Node::class);
+            assert($node instanceof Node);
 
-        // 为node2创建3天的流量数据
-        for ($i = 3; $i >= 0; $i--) {
-            $date = new \DateTime();
-            $date->modify("-$i days");
+            for ($i = 0; $i < 15; ++$i) {
+                $date = new \DateTimeImmutable("-{$i} days");
+                $ip = $ipAddresses[$i % count($ipAddresses)];
 
-            $traffic = new DailyTraffic();
-            $traffic->setNode($node2);
-            $traffic->setIp('192.168.1.101');
-            $traffic->setDate($date);
-            $traffic->setRx((string)(800000 + $i * 80000));
-            $traffic->setTx((string)(400000 + $i * 40000));
+                $dailyTraffic = new DailyTraffic();
+                $dailyTraffic->setNode($node);
+                $dailyTraffic->setIp($ip);
+                $dailyTraffic->setDate($date);
 
-            $manager->persist($traffic);
+                // 生成随机流量数据 (字节)
+                $baseTx = rand(1000000, 100000000); // 1MB-100MB
+                $baseRx = rand(5000000, 500000000); // 5MB-500MB
+
+                $dailyTraffic->setTx((string) $baseTx);
+                $dailyTraffic->setRx((string) $baseRx);
+
+                $manager->persist($dailyTraffic);
+
+                // 创建引用
+                $this->addReference(self::DAILY_TRAFFIC_PREFIX . $refIndex, $dailyTraffic);
+                ++$refIndex;
+            }
         }
 
         $manager->flush();

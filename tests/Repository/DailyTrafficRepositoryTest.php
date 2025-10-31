@@ -2,104 +2,54 @@
 
 namespace ServerStatsBundle\Tests\Repository;
 
-use PHPUnit\Framework\TestCase;
+use Carbon\CarbonImmutable;
+use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use ServerNodeBundle\Entity\Node;
 use ServerStatsBundle\Entity\DailyTraffic;
+use ServerStatsBundle\Repository\DailyTrafficRepository;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractRepositoryTestCase;
 
-class DailyTrafficRepositoryTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(DailyTrafficRepository::class)]
+#[RunTestsInSeparateProcesses]
+final class DailyTrafficRepositoryTest extends AbstractRepositoryTestCase
 {
-    public function testSaveTrafficLogic(): void
+    private DailyTrafficRepository $repository;
+
+    protected function onSetUp(): void
     {
-        // 测试 saveTraffic 方法的核心逻辑，而不是实际的数据库操作
-        $node = new Node();
-        $ip = '192.168.1.100';
-        $date = new \DateTime('2023-01-01');
-        $rx = 1000000;
-        $tx = 500000;
-        
-        // 测试新建记录的场景
-        $log = new DailyTraffic();
-        $log->setRx('0');
-        $log->setTx('0');
-        $log->setNode($node);
-        $log->setDate($date);
-        $log->setIp($ip);
-        
-        // 模拟 saveTraffic 方法的逻辑
-        if ($log->getRx() < $rx) {
-            $log->setRx((string)$rx);
-        }
-        if ($log->getTx() < $tx) {
-            $log->setTx((string)$tx);
-        }
-        
-        $this->assertSame($node, $log->getNode());
-        $this->assertSame($ip, $log->getIp());
-        $this->assertSame($date, $log->getDate());
-        $this->assertSame((string)$rx, $log->getRx());
-        $this->assertSame((string)$tx, $log->getTx());
+        $this->repository = self::getService(DailyTrafficRepository::class);
     }
-    
-    public function testSaveTrafficUpdatesHigherValues(): void
+
+    protected function createNewEntity(): object
     {
         $node = new Node();
-        $ip = '192.168.1.100';
-        $date = new \DateTime('2023-01-01');
-        $oldRx = 500000;
-        $oldTx = 250000;
-        $newRx = 1000000;
-        $newTx = 500000;
-        
-        // 创建现有记录
-        $log = new DailyTraffic();
-        $log->setNode($node);
-        $log->setIp($ip);
-        $log->setDate($date);
-        $log->setRx((string)$oldRx);
-        $log->setTx((string)$oldTx);
-        
-        // 模拟更新逻辑
-        $log->setIp($ip);
-        if ($log->getRx() < $newRx) {
-            $log->setRx((string)$newRx);
-        }
-        if ($log->getTx() < $newTx) {
-            $log->setTx((string)$newTx);
-        }
-        
-        $this->assertSame((string)$newRx, $log->getRx());
-        $this->assertSame((string)$newTx, $log->getTx());
+        $node->setName('Test Node ' . uniqid());
+        $node->setApiKey('test-key-' . uniqid());
+        $node->setApiSecret('test-secret-' . uniqid());
+        $node->setSshHost('127.0.0.1');
+        self::getEntityManager()->persist($node);
+        self::getEntityManager()->flush();
+
+        $entity = new DailyTraffic();
+        $entity->setNode($node);
+        $entity->setDate(CarbonImmutable::now()->addDays(rand(1, 365))->startOfDay());
+        $entity->setIp('127.0.0.1');
+        $entity->setRx('1000');
+        $entity->setTx('2000');
+
+        return $entity;
     }
-    
-    public function testSaveTrafficKeepsHigherValues(): void
+
+    /**
+     * @return ServiceEntityRepository<DailyTraffic>
+     */
+    protected function getRepository(): ServiceEntityRepository
     {
-        $node = new Node();
-        $ip = '192.168.1.100';
-        $date = new \DateTime('2023-01-01');
-        $highRx = 2000000;
-        $highTx = 1000000;
-        $lowRx = 1000000;
-        $lowTx = 500000;
-        
-        // 创建现有记录，具有更高的值
-        $log = new DailyTraffic();
-        $log->setNode($node);
-        $log->setIp($ip);
-        $log->setDate($date);
-        $log->setRx((string)$highRx);
-        $log->setTx((string)$highTx);
-        
-        // 模拟保存更低值的逻辑
-        $log->setIp($ip);
-        if ($log->getRx() < $lowRx) {
-            $log->setRx((string)$lowRx);
-        }
-        if ($log->getTx() < $lowTx) {
-            $log->setTx((string)$lowTx);
-        }
-        
-        // 应该保持更高的原始值
-        $this->assertSame((string)$highRx, $log->getRx());
-        $this->assertSame((string)$highTx, $log->getTx());
+        return $this->repository;
     }
-} 
+}

@@ -1,0 +1,12 @@
+parameters:
+    level: 8
+    paths:
+        - src
+        - tests
+    excludePaths:
+        - tests/bootstrap.php (?)
+    ignoreErrors:
+        # 忽略 Doctrine 实体 ID 属性的类型问题（由 ORM 自动赋值）
+        - '#Property.*::\$id \(int\|null\) is never assigned int so it can be removed from the property type\.#'
+        # 忽略已经有 PHPDoc 注解但 PHPStan 仍报告的数组类型问题
+        - '#Property.*::\$onlineUsers type has no value type specified in iterable type array\.#'

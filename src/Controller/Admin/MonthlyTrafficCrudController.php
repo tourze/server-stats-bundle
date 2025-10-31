@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace ServerStatsBundle\Controller\Admin;
 
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminCrud;
@@ -9,36 +11,34 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
-use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
-use ServerStatsBundle\Entity\DailyTraffic;
+use ServerStatsBundle\Entity\MonthlyTraffic;
 
 /**
- * @extends AbstractCrudController<DailyTraffic>
+ * @extends AbstractCrudController<MonthlyTraffic>
  */
-#[AdminCrud(routePath: '/server-stats/daily-traffic', routeName: 'server_stats_daily_traffic')]
-final class DailyTrafficCrudController extends AbstractCrudController
+#[AdminCrud(routePath: '/server-stats/monthly-traffic', routeName: 'server_stats_monthly_traffic')]
+final class MonthlyTrafficCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return DailyTraffic::class;
+        return MonthlyTraffic::class;
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setEntityLabelInSingular('日流量')
-            ->setEntityLabelInPlural('日流量统计')
-            ->setPageTitle('index', '服务器日流量统计')
-            ->setHelp('index', '查看服务器节点的每日流量统计数据，包括上行流量和下行流量')
-            ->setDefaultSort(['date' => 'DESC'])
-            ->setSearchFields(['ip', 'node.name'])
+            ->setEntityLabelInSingular('月流量')
+            ->setEntityLabelInPlural('月流量统计')
+            ->setPageTitle('index', '服务器月流量统计')
+            ->setHelp('index', '查看服务器节点的每月流量统计数据，包括上行流量和下行流量')
+            ->setDefaultSort(['month' => 'DESC'])
+            ->setSearchFields(['ip', 'node.name', 'month'])
             ->setPaginatorPageSize(30)
         ;
     }
@@ -58,10 +58,13 @@ final class DailyTrafficCrudController extends AbstractCrudController
 
         yield TextField::new('ip', 'IP地址');
 
-        yield DateField::new('date', '日期')
+        yield TextField::new('month', '月份')
+            ->setHelp('格式：YYYY-MM，例如：2024-01')
             ->setFormTypeOptions([
-                'html5' => true,
-                'widget' => 'single_text',
+                'attr' => [
+                    'pattern' => '\d{4}-\d{2}',
+                    'placeholder' => '2024-01',
+                ],
             ])
         ;
 
@@ -103,7 +106,7 @@ final class DailyTrafficCrudController extends AbstractCrudController
         return $filters
             ->add(EntityFilter::new('node', '节点'))
             ->add(TextFilter::new('ip', 'IP地址'))
-            ->add(DateTimeFilter::new('date', '日期'))
+            ->add(TextFilter::new('month', '月份'))
         ;
     }
 
