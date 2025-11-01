@@ -34,7 +34,7 @@
     "tourze/easy-admin-menu-bundle": "1.0.*",
     "tourze/gb-t-2659": "0.0.*",
     "tourze/server-node-bundle": "0.0.*",
-    "tourze/symfony-dependency-service-loader": "1.*",
+    "tourze/symfony-dependency-service-loader": "1.0.*",
     "tourze/symfony-routing-auto-loader-bundle": "1.0.*",
     "tourze/symfony-schedule-entity-clean-bundle": "1.0.*",
     "yiisoft/arrays": "^3",
