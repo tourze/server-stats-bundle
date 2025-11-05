@@ -66,8 +66,7 @@ final class DailyTrafficCrudControllerTest extends AbstractEasyAdminControllerTe
     #[Test]
     public function testListPageDisplaysCorrectFields(): void
     {
-        $client = self::createClientWithDatabase();
-        $this->loginAsAdmin($client, 'admin@example.com', 'admin123');
+        $client = self::createAuthenticatedClient();
 
         $client->request('GET', '/admin/server-stats/daily-traffic');
 
@@ -90,8 +89,7 @@ final class DailyTrafficCrudControllerTest extends AbstractEasyAdminControllerTe
     #[Test]
     public function testSearchAndFilter(): void
     {
-        $client = self::createClientWithDatabase();
-        $this->loginAsAdmin($client, 'admin@example.com', 'admin123');
+        $client = self::createAuthenticatedClient();
 
         $client->request('GET', '/admin/server-stats/daily-traffic', [
             'filters' => [

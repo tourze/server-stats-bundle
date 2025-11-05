@@ -71,8 +71,7 @@ final class MinuteStatCrudControllerTest extends AbstractEasyAdminControllerTest
     #[Test]
     public function testListPageDisplaysCorrectFields(): void
     {
-        $client = self::createClientWithDatabase();
-        $this->loginAsAdmin($client, 'admin@example.com', 'admin123');
+        $client = self::createAuthenticatedClient();
 
         $client->request('GET', '/admin/server-stats/minute-stat');
 
@@ -95,8 +94,7 @@ final class MinuteStatCrudControllerTest extends AbstractEasyAdminControllerTest
     #[Test]
     public function testSearchAndFilter(): void
     {
-        $client = self::createClientWithDatabase();
-        $this->loginAsAdmin($client, 'admin@example.com', 'admin123');
+        $client = self::createAuthenticatedClient();
 
         $client->request('GET', '/admin/server-stats/minute-stat', [
             'filters' => [

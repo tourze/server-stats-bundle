@@ -68,8 +68,7 @@ final class MonthlyTrafficCrudControllerTest extends AbstractEasyAdminController
     #[Test]
     public function testListPageDisplaysCorrectFields(): void
     {
-        $client = self::createClientWithDatabase();
-        $this->loginAsAdmin($client, 'admin@example.com', 'admin123');
+        $client = self::createAuthenticatedClient();
 
         $client->request('GET', '/admin/server-stats/monthly-traffic');
 
@@ -92,8 +91,7 @@ final class MonthlyTrafficCrudControllerTest extends AbstractEasyAdminController
     #[Test]
     public function testSearchAndFilter(): void
     {
-        $client = self::createClientWithDatabase();
-        $this->loginAsAdmin($client, 'admin@example.com', 'admin123');
+        $client = self::createAuthenticatedClient();
 
         $client->request('GET', '/admin/server-stats/monthly-traffic', [
             'filters' => [
