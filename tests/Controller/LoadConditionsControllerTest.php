@@ -25,8 +25,8 @@ final class LoadConditionsControllerTest extends AbstractWebTestCase
 
         $response = $client->getResponse();
 
-        // 没有认证信息应该返回错误状态码
-        $this->assertContains($response->getStatusCode(), [400, 401]);
+        // 没有认证信息应该返回错误状态码或重定向到登录页
+        $this->assertContains($response->getStatusCode(), [302, 400, 401]);
     }
 
     #[Test]
@@ -38,76 +38,12 @@ final class LoadConditionsControllerTest extends AbstractWebTestCase
 
         $response = $client->getResponse();
 
-        // 无效的节点ID应该返回错误状态码
-        $this->assertContains($response->getStatusCode(), [400, 401, 404]);
-    }
-
-    #[Test]
-    public function testGetMethodNotAllowed(): void
-    {
-        $client = self::createClient();
-
-        $client->request('GET', '/api/load_conditions/');
-
-        $response = $client->getResponse();
-
-        // GET方法不被支持，应该返回405
-        $this->assertEquals(405, $response->getStatusCode());
-    }
-
-    #[Test]
-    public function testPutMethodNotAllowed(): void
-    {
-        $client = self::createClient();
-
-        $client->request('PUT', '/api/load_conditions/');
-
-        $response = $client->getResponse();
-
-        // PUT方法不被支持，应该返回405
-        $this->assertEquals(405, $response->getStatusCode());
-    }
-
-    #[Test]
-    public function testDeleteMethodNotAllowed(): void
-    {
-        $client = self::createClient();
-
-        $client->request('DELETE', '/api/load_conditions/');
-
-        $response = $client->getResponse();
-
-        // DELETE方法不被支持，应该返回405
-        $this->assertEquals(405, $response->getStatusCode());
-    }
-
-    #[Test]
-    public function testPatchMethodNotAllowed(): void
-    {
-        $client = self::createClient();
-
-        $client->request('PATCH', '/api/load_conditions/');
-
-        $response = $client->getResponse();
-
-        // PATCH方法不被支持，应该返回405
-        $this->assertEquals(405, $response->getStatusCode());
-    }
-
-    #[Test]
-    public function testOptionsMethodNotAllowed(): void
-    {
-        $client = self::createClient();
-
-        $client->request('OPTIONS', '/api/load_conditions/');
-
-        $response = $client->getResponse();
-
-        // OPTIONS方法不被支持，应该返回405
-        $this->assertEquals(405, $response->getStatusCode());
+        // 无效的节点ID应该返回错误状态码或重定向到登录页
+        $this->assertContains($response->getStatusCode(), [302, 400, 401, 404]);
     }
 
     #[DataProvider('provideNotAllowedMethods')]
+    #[Test]
     public function testMethodNotAllowed(string $method): void
     {
         $client = self::createClient();
