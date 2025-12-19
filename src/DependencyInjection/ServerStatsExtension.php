@@ -4,7 +4,7 @@ namespace ServerStatsBundle\DependencyInjection;
 
 use Tourze\SymfonyDependencyServiceLoader\AutoExtension;
 
-class ServerStatsExtension extends AutoExtension
+final class ServerStatsExtension extends AutoExtension
 {
     protected function getConfigDir(): string
     {
